@@ -622,7 +622,6 @@ function aztec(setCell,text,sec,lay) { // make Aztec bar code
 		b = j <= 240 ? 6 : j <= 1920 ? 8 : j <= 10208 ? 10 : 12; // bit capacity -> word size
 		if (lay) b = Math.max(b, lay < 3 ? 6 : lay < 9 ? 8 : lay < 23 ? 10 : 12); // parameter
 		if (i >= b) break;
-		//encode2(text);
 		encode(text);
 		el = enc.length;
 	}
@@ -872,25 +871,3 @@ function toMatrix() { // callback function(x,y) to array matrix
 	func.apply(func,arguments);
 	return mat;
 }
-/*
-var test_encode;
-function test_datamatrix(text) {
-	toMatrix(datamatrix,text);
-	var decode = "";
-	for (var i = 0; i < test_encode.length; i++) {
-		var c = test_encode[i];
-		if (c < 129) decode += String.fromCharCode(c-1);
-		else if (c == 129) break;
-		else if (c < 230) decode += (c < 140 ? "" : "0") + (test_encode[i]-130);
-		else if (c == 230) {
-			
-		} else if (c == 235) decode += String.fromCharCode(c+127);
-		else if (c == 231) { // Base256
-			c = (test_encode[++i]-(i*149)%255-1)&255;
-			if (c > 249) c = 250*(c-249)+(test_encode[++i]-(i*149)%255-1)&255;
-			while(c--) {
-				decode += String.fromCharCode((test_encode[++i]-(i*149)%255-1)&255);
-			}
-	}
-}
-*/

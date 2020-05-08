@@ -1,0 +1,216 @@
+
+body {
+  margin-left: 1em;
+  margin-right: 1em;
+  font-family: sans-serif;
+  background-color: #C0FFE0;
+}
+
+a { text-decoration:none; }
+a:link { color: darkcyan;  }
+a:visited { color: #004080; }
+a:active { color: black; }
+a:hover { text-decoration:underline; }
+
+img { border:0; }
+
+H1 {
+  margin:0pt;
+  visibility: hidden;
+  text-align: center;
+  color: dimgray;
+  text-align: center;
+  font-family: sans-serif;
+  font-size: 1px;
+  font-weight: bold;
+}
+
+H2 {
+  text-align: center;
+  color: navy;
+  font-size: x-large;
+  font-family: sans-serif;
+}
+
+H3 {
+  text-align: center;
+  color: darkcyan;
+  font-family: sans-serif;
+}
+
+H3.h2 {
+  text-align: center;
+  color: darkcyan;
+  font-size: large;
+  font-family: sans-serif;
+}
+
+H4 {
+  font-family: sans-serif;
+  text-indent: 2em;
+  margin-bottom: 0.5em;
+}
+
+H5 {
+  text-align: left;
+  color: dimgray;   
+  font-weight: normal; 
+  font-size: small; 
+  font-family: sans-serif;
+  text-indent: -2em;
+  margin-left: 2em;
+}
+
+
+H6 {
+  text-align: center;
+}
+
+H7 {
+  text-align: center;
+  visibility: hidden;
+  font-size: large;
+}
+
+UL {
+  font-family: sans-serif;
+  list-style-type: square;
+}
+
+LI {
+  font-family: sans-serif;
+  list-style-type: square;
+}
+
+DD {
+  font-style: italic;
+  font-family: sans-serif;
+}
+
+
+EM {
+  color: darkred;
+  font-family: sans-serif;
+}
+
+DIV {
+  margin-top: 1pt;
+  font-family: sans-serif;
+}
+
+p {
+  margin: 10pt;
+  margin-top: 3pt;
+  margin-bottom: 3pt;
+  text-indent: 1em;
+  text-align: justify;
+  font-family: sans-serif;
+}
+
+p.POEM {
+  text-indent: 0pt;
+  margin-left: 10%;
+  margin-top: 1em;
+  font-family: sans-serif;
+}
+
+p.VERS {
+  color: #000080;
+  text-indent: 0em;
+  margin-left: 10%;
+  margin-right: 5%;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+  font-family: sans-serif;
+  font-size: x-small;
+} 
+
+p#link {   text-indent: 0em; 
+  text-align: left;
+  margin-left: 0pt;
+}
+
+#link { /* Link zu den Kapiteln ist grau anstatt blau */
+  color: dimgray;   
+}
+
+#linkp { /* Link zu den Psalmen besteht aus 5 Buechern/Absaetzen ohne Abstaende */
+  color: dimgray;   
+  margin-top: 2pt;
+  margin-bottom: 2pt;
+}
+
+#inhalt { /* Link zu den Buechern */
+  text-align: left;
+  font-weight: normal; 
+  font-size: small; 
+  font-family: sans-serif;
+}
+
+#bibel { /* Link zur Bibel-Hauptseite */
+  text-align: center;
+  color: darkcyan;
+  font-size: large;
+}
+
+table {
+  cellspacing: 0;
+  cellpadding: 0;
+}
+
+.a:link {
+  text-align: left;
+  color: darkred;
+  font-family: sans-serif;
+}
+
+.a:visited {
+  text-align: left;
+  color: darkgreen;
+  font-family: sans-serif;
+}
+
+SPAN.VERS {
+  color: darkgreen;
+  font-size: smaller;
+  vertical-align: top;
+}
+
+.HIDDEN {
+  display: none;
+  font-family: sans-serif;
+}
+
+.CENTER {
+  text-align: center;
+  font-family: sans-serif;
+}
+
+.vers1 { /* der 1. Vers hat keine Einrueckung */
+  text-indent: 0pt;
+  text-align: justify;
+}
+
+.chapter {
+  text-indent: 0pt;
+  color: gray;
+  font-family: 'Times New Roman MT Extra Bold','Times New Roman',Times,sans-serif;
+  font-size: x-large;
+  font-weight: bold;
+  border-spacing: 0px;
+  float:left; 
+
+  margin-top: 2px; 
+  margin-right: 2px; 
+  margin-bottom: -3px;
+  padding-right: 0pt;
+  line-height: 20pt;
+}
+.bar {
+  fill:#001;
+  opacity: 0.8;
+}
+input {
+  text-align:right;
+}
+ 

@@ -7,15 +7,11 @@
 
   <script type="text/javascript" src="barcode.js"></script>
   <script type="text/javascript" src="kanji.js"></script> <!-- unicode conversion string, omit if kanji encoding in QRCode isn't needed -->
-  <link rel="Stylesheet" type="text/css" href="easyfilter.css" />
+  <link rel="Stylesheet" type="text/css" href="barcode.css" />
   <link rel="SHORTCUT ICON" href="favicon.ico" />
   <script type="text/javascript">
 	//<![CDATA[
-	  function Psns(ml) { return 'to:'+ ml + 'qay'; }
 	  window.onload = function() {    
-		with (document.getElementById("[at]").firstChild.parentNode) {
-		  setAttribute("href", getAttribute("href").replace("qay", "@"));
-		} 
 		draw();
 		ticktack(0);
 	  }
