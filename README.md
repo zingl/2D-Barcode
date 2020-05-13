@@ -1,5 +1,6 @@
 # 2D Barcode Generator
 Data Matrix, QR, Aztec and Code 128 barcode creation by open source JavaScript program or office macros.
+Demonstration example page at [GitHub](https://zingl.github.io/)
 ## Features
 * Creates Data Matrix in square or rectangular pattern.
 * Creates QR or micro QR barcode symbols.
