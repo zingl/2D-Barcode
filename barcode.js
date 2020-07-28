@@ -1,6 +1,6 @@
 /** 2D barcode symbol creation by javascript
 * @author alois zingl
-* @version V20.30 june 2020
+* @version V2.0 july 2020
 * @copyright MIT open-source license software
 * @url https://zingl.github.io/
 * @description the indention of this library is a short and compact implementation to create the 2D barcodes 
@@ -27,7 +27,7 @@
 * @param rect optional: flag - true for rectangular barcode
 * @return array [width,height] of symbol ([0,0] if text too long)
 */
-function datamatrix(setCell,text,rect) {
+function datamatrix(setCell, text, rect) {
 	var enc = [], cw = 0, ce = 0; // byte stream
 	function push(val) { // encode bit stream c40/text/x12
 		cw = 40*cw+val;
@@ -63,7 +63,7 @@ function datamatrix(setCell,text,rect) {
 	}
 	for (p = 0; ; cm = nm) { // encode text
 		c = bytes[p][cm]-latch[cm];
-		if (p+(cm == 4 ? 3 : cm < 4 ?  2 : 0) >= text.length) nm = 0; // finished, return to ascii
+		if (p+[0,2,2,2,3,0][cm] >= text.length) nm = 0; // finished, return to ascii
 		else for (i = cost.length; i-- > 0; ) // check if a mode is shorter
 				if (Math.ceil((bytes[p+1][i]+cost[i](text.charCodeAt(p)))/12)*12 == c)
 					nm = i; // change to shorter mode
@@ -178,7 +178,6 @@ function datamatrix(setCell,text,rect) {
 		}
 	// layout data
 	s = 2; c = 0; r = 4; // step,column,row of data position
-	b = [0,0, -1,0, -2,0, 0,-1, -1,-1, -2,-1, -1,-2, -2,-2]; // nominal byte layout
 	for (i = 0; i < l; r -= s, c += s) { // diagonal steps
 		if (r == h-3 && c == -1) // corner A layout
 			k = [w,6-h, w,5-h, w,4-h, w,3-h, w-1,3-h, 3,2, 2,2, 1,2];
@@ -195,7 +194,7 @@ function datamatrix(setCell,text,rect) {
 			else if (r == h-2 && c == 0 && (w&7) == 4) // corner C layout
 				k = [w-1,5-h, w-1,4-h, w-1,3-h, w-1,2-h, w-2,2-h, 0,1, 0,0, 0,-1];
 			else if (r == 1 && c == w-1 && (w&7) == 0 && (h&7) == 6) continue; // omit corner D
-			else k = b; // nominal L-shape layout
+			else k = [0,0, -1,0, -2,0, 0,-1, -1,-1, -2,-1, -1,-2, -2,-2]; // nominal L-shape layout
 		}
 		for (el = enc[i++], j = 0; el > 0; j += 2, el >>= 1) { // layout each bit
 			if (el&1) {
@@ -214,101 +213,83 @@ function datamatrix(setCell,text,rect) {
 *	creates QR and micro QR bar code symbol as javascript matrix array.
 * @param text to encode
 * @param level optional: quality level LMQH
-* @param ver optional: minimum version size (-3:M1, -2:M2, .. 1, .. 40), set to 1 for QR only
-* @return matrix array of QR symbol ([] if text is too long or chars uncodable)
+* @param ver optional: minimum version size (-3:M1, -2:M2, .. 1, .. 40), set to -3 for micro QR
+* @return matrix array of QR symbol ([] if text is too long)
+*   needs kanji.js for unicode kanji encoding string
 */
-function quickresponse(text,level,ver) { // create QR and micro QR bar code symbol
-	function alphanum(c) { // char code of alphanumeric encoding
-		return "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:".indexOf(String.fromCharCode(c));
-	}
-	function isKanji(i) {
-		if (text.charCodeAt(i) < 256) return -1;
-		return k1.indexOf(text.charAt(i),k1.length>>1);
-	}
+function quickresponse(text, level, ver) { // create QR and micro QR bar code symbol
 	var mode, size, align, blk, ec;
-	var i, j, k, k1, c, b, d, w, x, y, n, a;
-	var enc = [0], el, eb = 0; // encoding data, length, bits
-	var erc =[[2,5, 6, 8,  7,10,15,20,26,18,20,24,30,18,20,24,26,30,22,24,28,30,28,28,28,28,30,30,26,28,30,30,30,30,30,30,30,30,30,30,30,30,30,30], // error correction words L
-			[99, 6, 8,10, 10,16,26,18,24,16,18,22,22,26,30,22,22,24,24,28,28,26,26,26,26,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28], // M
-			[99,99,99,14, 13,22,18,26,18,24,18,22,20,24,28,26,24,20,30,24,28,28,26,30,28,30,30,30,30,28,30,30,30,30,30,30,30,30,30,30,30,30,30,30], // Q
-			[99,99,99,99, 17,28,22,16,22,28,26,26,24,28,24,28,22,24,24,30,28,28,26,28,30,24,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30], // H
-			[ 1, 1, 1, 1, 1,1,1,1,1,2,2,2,2,4, 4, 4, 4, 4, 6, 6, 6, 6, 7, 8, 8, 9, 9,10,12,12,12,13,14,15,16,17,18,19,19,20,21,22,24,25], // error correction blocks L
-			[ 1, 1, 1, 1, 1,1,1,2,2,4,4,4,5,5, 5, 8, 9, 9,10,10,11,13,14,16,17,17,18,20,21,23,25,26,28,29,31,33,35,37,38,40,43,45,47,49], // M
-			[ 1, 1, 1, 1, 1,1,2,2,4,4,6,6,8,8, 8,10,12,16,12,17,16,18,21,20,23,23,25,27,29,34,34,35,38,40,43,45,48,51,53,56,59,62,65,68], // Q
-			[ 1, 1, 1, 1, 1,1,2,4,4,4,5,6,8,8,11,11,16,16,18,16,19,21,25,25,25,34,30,32,35,37,40,42,45,48,51,54,57,60,63,66,70,74,77,81]  // H
-	];	//	 M1,M2,M3,M4,V1, 2, .. 
+	var i, j, k, c, b, d, w, x, y, n;
+	var erc=[[2, 5, 6, 8,  7,10,15,20,26,18,20,24,30,18,20,24,26,30,22,24,28,30,28,28,28,28,30,30,26,28,30,30,30,30,30,30,30,30,30,30,30,30,30,30], // error correction words L
+	        [99, 6, 8,10, 10,16,26,18,24,16,18,22,22,26,30,22,22,24,24,28,28,26,26,26,26,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28], // M
+	        [99,99,99,14, 13,22,18,26,18,24,18,22,20,24,28,26,24,20,30,24,28,28,26,30,28,30,30,30,30,28,30,30,30,30,30,30,30,30,30,30,30,30,30,30], // Q
+	        [99,99,99,99, 17,28,22,16,22,28,26,26,24,28,24,28,22,24,24,30,28,28,26,28,30,24,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30], // H
+	        [ 1, 1, 1, 1, 1,1,1,1,1,2,2,2,2,4, 4, 4, 4, 4, 6, 6, 6, 6, 7, 8, 8, 9, 9,10,12,12,12,13,14,15,16,17,18,19,19,20,21,22,24,25], // error correction blocks L
+	        [ 1, 1, 1, 1, 1,1,1,2,2,4,4,4,5,5, 5, 8, 9, 9,10,10,11,13,14,16,17,17,18,20,21,23,25,26,28,29,31,33,35,37,38,40,43,45,47,49], // M
+	        [ 1, 1, 1, 1, 1,1,2,2,4,4,6,6,8,8, 8,10,12,16,12,17,16,18,21,20,23,23,25,27,29,34,34,35,38,40,43,45,48,51,53,56,59,62,65,68], // Q
+	        [ 1, 1, 1, 1, 1,1,2,4,4,4,5,6,8,8,11,11,16,16,18,16,19,21,25,25,25,34,30,32,35,37,40,42,45,48,51,54,57,60,63,66,70,74,77,81]  // H
+	];  //   M1,M2,M3,M4,V1, 2, .. 
 	var lev = 3-"HQMLhqml3210".indexOf(level||0)&3; // level "LMQH" to 0,1,2,3
-	k1 = (typeof kanji === 'undefined') ? "" : kanji; // for no kanji.js
-	/** data analysis */
-	for (i = text.length; i-- > 0; ) // check for kanji
-		if (text.charCodeAt(i) > 127 && isKanji(i) < 0) // unicode to UTF-8
-			text = text.substr(0,i)+unescape(encodeURIComponent(text.substr(i,1)))+text.substr(i+1);
-	/** compute symbol version size, ver < 1: micro QR */
+	var chars = [ "0123456789", // char table for numeric
+				"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:", // alpha
+				String.fromCharCode.apply(null,Array(128).fill(0).map((_,i) => i)), // binary, >127 -> use utf-8
+				typeof kanji === undefined || kanji.length != 7973 ? "" : kanji ]; // kanji char index (in kanji.js)
+	function len(mod,chr) { // get encoding length in 1/6 bits
+		if (chars[mod].indexOf(chr) >= 0) return [20,33,48,78][mod];
+		return mod != 2 ? 1e9 : chr.charCodeAt(0) < 2048 ? 96 : 144; // two/three byte utf-8
+	}
+	function cib(mod) { // get # of bits of count indicator
+		return ver < 1 ? ver+((19-2*mod)/3|0) : // micro QR
+			[[10,12,14],[9,11,13],[8,16,16],[8,10,12]][mod][(ver+7)/17|0]; // QR
+	}
 	function push(val,bits) { // add data to bit stream
 		val <<= 8; eb += bits;
 		enc[enc.length-1] |= val>>eb;
 		while (eb > 7) enc[enc.length] = (val>>(eb -= 8))&255;
 	}
-	function cib(m) { // get # of bits of count indicator
-		return ver < 1 ? ver+((19-2*m)/3|0) : // micro QR
-			[[10,12,14],[9,11,13],[8,16,16],[8,10,12]][m][(ver+7)/17|0]; // QR
-	}
-	ver = ver == undefined ? 1 : ver-1;
+	/** compute symbol version size, ver < 1: micro QR */
+	ver = ver === undefined ? 1 : ver-1;
 	do { // increase version till message fits
 		if (++ver >= erc[0].length-3) return []; // text too long for QR
 		if (ver < 2 || ver == 10 || ver == 27) { // recompute stream
-			var NUMERIC = 0, ALPHA = 1, BYTE = 2, KANJI = 3; // encoding modes
-			var numHead   = ((ver > 0 ? 4 : ver+3)+cib(0))*6; // segment header sizes,
-			var alphaHead = ((ver > 0 ? 4 : ver+3)+cib(1))*6; // measured in 1/6 bits
-			var byteHead  = ((ver > 0 ? 4 : ver+3)+cib(2))*6;
-			var byteBits = [], alphaBits = [], numBits = []; // len in 1/6 bits
-			for (j = text.length; j >= 0; j--) { // compute optimal encoding
-				if (j == text.length || isKanji(j) >= 0) {
-					i = 0; n = a = b = 1e9; // init values
-				} else { // calculate the bit table using dynamic programming
-					n += text.charCodeAt(j)-48>>>0 < 10 ? 20 : 1e9; // 10/3 bits per char
-					a += alphanum(text.charCodeAt(j)) >= 0 ? 33 : 1e9; // 11/2 bits per char
-					b += 48;  // 8 bits per byte
-					i = Math.ceil(Math.min(b,a,n)/6)*6; // round up fractional bits
-				}
-				n = numBits[j] = Math.min(i+numHead,n); // switch to shorter encoding
-				a = alphaBits[j] = Math.min(i+alphaHead,a);
-				b = byteBits[j] = Math.min(i+byteHead,b);
+			var enc = [0], el, eb = 0; // encoding data, length, bits
+			var head = []; // calculate the bit table using dynamic programming:
+			for (j = 0; j < 4; j++) // www.nayuki.io/page/optimal-text-segmentation-for-qr-codes
+				head.push((Math.min(4,ver+3)+cib(j))*6); // segment head sizes
+			var bits = [[]], cost = head.slice(); // cost table in 1/6 bits
+			for (i = text.length; i-- > 0; ) { // data analysis
+				bits.unshift(cost.slice()); // record costs
+				for (j = 0; j < cost.length; j++) // accumulate costs from back
+					cost[j] += len(j,text.charAt(i));
+				b = Math.min.apply(null,cost);
+				for (j = 0; j < cost.length; j++) // switch to shorter encoding
+					cost[j] = Math.min(cost[j],((b+5)/6|0)*6+head[j]);
 			}
-			enc = [0]; eb = 0; // start encoding with mode of fewest bits
-			mode = isKanji(0) >= 0 ? KANJI : b <= a && b <= n ? BYTE : a <= n ? ALPHA : NUMERIC;
-			for (i = 0, j = 1; j <= text.length; j++) { // calc optimal encoding for each char
-				b = mode == NUMERIC ? numBits[j]-numHead : mode == ALPHA ? alphaBits[j]-alphaHead : byteBits[j]-byteHead;
-				if (j == text.length || isKanji(j) >= 0) 
-					n = KANJI; // mode of next char
-				else if (mode == KANJI) // restart with mode of fewest bits
-					n = byteBits[j] <= Math.min(alphaBits[j], numBits[j]) ? BYTE :
-						alphaBits[j] <= numBits[j] ? ALPHA : NUMERIC;
-				else if (text.charCodeAt(j)-48>>>0 < 10 && (mode == NUMERIC || Math.ceil((numBits[j+1]+20)/6)*6 == b))
-					n = NUMERIC; // switch to shortest encoding
-				else if (alphanum(text.charCodeAt(j)) >= 0 && (mode == ALPHA || Math.ceil((alphaBits[j+1]+33)/6)*6 == b))
-					n = ALPHA; // switch to shortest encoding
-				else n = BYTE;	
+			n = mode = cost.indexOf(b); // start encoding with mode of fewest bits
+			for (i = j = 0; j++ < text.length; ) { // calc optimal encoding for each char
+				for (k of [2,3,1,0]) { // check binary, kanji, alpha, numeric mode
+					b = bits[j][k]+len(k,text.charAt(j))+5; // switch to shorter encoding
+					if (b < 1e7 && (mode == k || 6*(b/6|0) == bits[j-1][mode]-head[mode])) n = k;
+				}
 				if (mode != n || j == text.length) { // mode changes -> encode previous
-					if (ver < -1 && ver+3 < mode) push(0,100); // block illegal modes
+					if (ver < -1 && ver+3 < mode) push(0,50); // prevent illegal mode
 					if (ver > 0) push(1<<mode,4); // mode indicator, QR
 					else push(mode,ver+3); // mode indicator micro QR
-					push(j-i,cib(mode)); // character count indicator
-					if (mode == NUMERIC) { // encode numeric data
+					b = unescape(encodeURIComponent(text.substring(i,j))); // to utf-8
+					push(mode == 2 ? b.length : j-i,cib(mode)); // character count indicator
+					if (mode == 0) { // encode numeric data
 						for (; i < j-2; i += 3)
 							push(text.substr(i,3),10); // 3 digits in 10 bits
-						if (i < j) push(text.substring(i),j-i == 1 ? 4 : 7);
-					} else if (mode == ALPHA) { // encode alphanumeric data
+						if (i < j) push(text.substring(i,j),j-i == 1 ? 4 : 7);
+					} else if (mode == 1) { // encode alphanumeric data
 						for (; i < j-1; i += 2)  // 2 chars in 11 bits
-							push(alphanum(text.charCodeAt(i))*45+alphanum(text.charCodeAt(i+1)),11);
-						if (i < j) push(alphanum(text.charCodeAt(i)),6);
-					} else if (mode == BYTE) // encode binary data
-						for (; i < j; i++) 
-							push(text.charCodeAt(i),8); // 1 char in 8 bits
-					else for (; i < j; i++) { // encode Kanji
-							c = (k1.charCodeAt(isKanji(i)-(k1.length>>1))&0x3fff)-320; // shift JIS X 0208
-							push((c>>8)*192+(c&255),13); // 1 char in 13 bits
-						}
+							push(chars[1].indexOf(text.charAt(i))*45+chars[1].indexOf(text.charAt(i+1)),11);
+						if (i < j) push(chars[1].indexOf(text.charAt(i)),6);
+					} else if (mode == 2) // encode binary (utf-8)
+						for (i = 0; i < b.length; i++)
+							push(b.charCodeAt(i),8); // 1 char in 8 bits
+					else for (; i < j; i++) // encode kanji
+							push(chars[3].indexOf(text.charAt(i)),13); // 1 char in 13 bits
 					i = j; mode = n; // next segment
 				}
 			}
@@ -321,7 +302,7 @@ function quickresponse(text,level,ver) { // create QR and micro QR bar code symb
 		c = erc[lev+4][ver+3]*erc[lev][ver+3]; // # of error correction blocks/bytes
 	} while ((el&-8)-c*8 < enc.length*8+eb-i); // message fits in version
 
-	for (;(!level || (level.charCodeAt(0)&-33) == 65) && lev < 3; lev++) {
+	for (;(!level || (level.charCodeAt(0)&-33) == 65) && lev < 3; lev++) { // if level undefined or 'A'
 		j = erc[lev+5][ver+3]*erc[lev+1][ver+3]; // increase security level
 		if ((el&-8)-j*8 < enc.length*8+eb-i) break; // if data fits in same size
 	}
@@ -368,7 +349,7 @@ function quickresponse(text,level,ver) { // create QR and micro QR bar code symb
 	if (ver > 0) {
 		set(0,size-8,[256,383,321,349,349,349,321,383]); // finder lower left
 		set(size-8,0,[254,130,186,186,186,130,254,0,255]); // finder upper right
-		c = 2*Math.floor(2*(ver+1)/(1-align)); // alignment pattern spacing
+		c = (ver+1)/(1-align)*4&-2; // alignment pattern spacing
 		for (x = 0; x < align; x++) // alignment grid
 			for (y = 0; y < align; y++) 
 				if ((x > 0 && y > 0) || (x != y && x+y != align-1)) // no align at finder
@@ -400,13 +381,13 @@ function quickresponse(text,level,ver) { // create QR and micro QR bar code symb
 	}
 	/** data masking */
 	var get = [ function(x,y) { return ((x+y|mat[y][x]>>1)^mat[y][x])&1^1; }, // pattern generation conditions
-				function(x,y) { return ((y|mat[y][x]>>1)^mat[y][x])&1^1; },
-				function(x,y) { return ((x%3>0|mat[y][x]>>1)^mat[y][x])&1^1; },
-				function(x,y) { return (((x+y)%3>0|mat[y][x]>>1)^mat[y][x])&1^1; },
-				function(x,y) { return ((x/3+(y>>1)|mat[y][x]>>1)^mat[y][x])&1^1; },
-				function(x,y) { return ((((x*y)&1)+x*y%3>0|mat[y][x]>>1)^mat[y][x])&1^1; },
-				function(x,y) { return ((x*y+x*y%3|mat[y][x]>>1)^mat[y][x])&1^1; },
-				function(x,y) { return ((x+y+x*y%3|mat[y][x]>>1)^mat[y][x])&1^1; } ];
+	            function(x,y) { return ((y|mat[y][x]>>1)^mat[y][x])&1^1; },
+	            function(x,y) { return ((x%3>0|mat[y][x]>>1)^mat[y][x])&1^1; },
+	            function(x,y) { return (((x+y)%3>0|mat[y][x]>>1)^mat[y][x])&1^1; },
+	            function(x,y) { return ((x/3+(y>>1)|mat[y][x]>>1)^mat[y][x])&1^1; },
+	            function(x,y) { return ((((x*y)&1)+x*y%3>0|mat[y][x]>>1)^mat[y][x])&1^1; },
+	            function(x,y) { return ((x*y+x*y%3|mat[y][x]>>1)^mat[y][x])&1^1; },
+	            function(x,y) { return ((x+y+x*y%3|mat[y][x]>>1)^mat[y][x])&1^1; } ];
 	if (ver < 1) get = [get[1],get[4],get[6],get[7]]; // mask pattern for micro QR
 	var msk, pen = 30000, p;
 	for (var m = 0; m < get.length; m++) { // compute penalty of masks
@@ -474,22 +455,22 @@ function quickresponse(text,level,ver) { // create QR and micro QR bar code symb
 * @param lay optional: minimum number of layers (size), default autodetect
 * @return array size (0 if text too long for Aztec)
 */
-function aztec(setCell,text,sec,lay) { // make Aztec bar code
-	var e = 20000, BackTo, numBytes, CharSiz = [5,5,5,5,4,8];
+function aztec(setCell, text, sec, lay) { // make Aztec bar code
+	var e = 20000, BackTo, numBytes, CharSiz = [5,5,5,5,4];
 	var LatLen = [[ 0,5,5,10,5,10], [9,0,5,10,5,10], [5,5,0,5,10,10],
-				 [5,10,10,0,10,15], [4,9,9,14,0,14], [0,0,0,0,0,0]];
-	var ShftLen =  [[e,e,e,5,e], [5,e,e,5,e], [e,e,e,5,e], [e,e,e,e,e], [4,e,e,4,e]];
-	var Latch = [[[],	[28],	[29],	[29,30],[30],	[31]], // from upper to ULMPDB
-				[[30,14],[],	[29],	[29,30],[30],	[31]], //      lower
-				[[29],	[28],	[],		[30],	[28,30],[31]], //      mixed
-				[[31],	[31,28],[31,29],[],		[31,30],[31,31]], //   punct
-				[[14],	[14,28],[14,29],[14,29,30],[],	[14,31]]]; //  digit
+	             [5,10,10,0,10,15], [4,9,9,14,0,14], [0,0,0,0,0,0]];
+	var ShftLen =  [[0,e,e,5,e], [5,0,e,5,e], [e,e,0,5,e], [e,e,e,0,e], [4,e,e,4,0]];
+	var Latch = [[[],  [28],    [29],   [29,30],[30],   [31]], // from upper to ULMPDB
+	            [[30,14],[],    [29],   [29,30],[30],   [31]], //      lower
+	            [[29],  [28],   [],     [30],   [28,30],[31]], //      mixed
+	            [[31],  [31,28],[31,29],[],	    [31,30],[31,31]], //   punct
+	            [[14],  [14,28],[14,29],[14,29,30],[],  [14,31]]]; //  digit
 	var CharMap = [	"  ABCDEFGHIJKLMNOPQRSTUVWXYZ", // upper
-					"  abcdefghijklmnopqrstuvwxyz", // lower
-					String.fromCharCode(0,32,1,2,3,4,5,6,7,8,9,10,11,12,13,
-						27,28,29,30,31,64,92,94,95,96,124,126,127), // mixed
-					" \r\r\r\r\r!\"#$%&'()*+,-./:;<=>?[]{}", // punct
-					"  0123456789,."]; // digit
+	                "  abcdefghijklmnopqrstuvwxyz", // lower
+	                String.fromCharCode(0,32,1,2,3,4,5,6,7,8,9,10,11,12,13,
+	                    7,28,29,30,31,64,92,94,95,96,124,126,127), // mixed
+	                " \r\r\r\r\r!\"#$%&'()*+,-./:;<=>?[]{}", // punct
+	                "  0123456789,."]; // digit
 	var enc, el = text.length, b, typ = 0, x,y, ctr, c, i, j, l;
 
 	function stream(seq, val, bits) { // add data to bit stream 
@@ -516,13 +497,12 @@ function aztec(setCell,text,sec,lay) { // make Aztec bar code
 	/** encode text */
 	sec = 100/(100-Math.min(Math.max(sec||25,0),90)); // limit percentage of check words to 0-90%
 	for (j = c = 4; ; c = b) { // compute word size b: 6/8/10/12 bits
-		var Cur = [[0,0],[e,0],[e,0],[e,0],[e,0],[e,0]]; // current sequence for [U,L,M,P,D,B]
-
 		j = Math.max(j,(Math.floor(el*sec)+3)*c); // total needed bits, at least 3 check words
 		b = j <= 240 ? 6 : j <= 1920 ? 8 : j <= 10208 ? 10 : 12; // bit capacity -> word size
 		if (lay) b = Math.max(b, lay < 3 ? 6 : lay < 9 ? 8 : lay < 23 ? 10 : 12); // parameter
 		if (c >= b) break; // fits in word size
 
+		var Cur = [[0,0],[e,0],[e,0],[e,0],[e,0],[e,0]]; // current sequence for [U,L,M,P,D,B]
 		for (i = 0; i < text.length; i++) { // calculate shortest message sequence
 			for (var to = 0; to < 6; to++) // check for shorter latch to
 				for (var frm = 0; frm < 6; frm++) // if latch from
@@ -539,15 +519,12 @@ function aztec(setCell,text,sec,lay) { // make Aztec bar code
 			for (to = 0; to < 5; to++) { // to sequence
 				var idx = twoChar < 0 ? CharMap[to].indexOf(text.substr(i,1),1) : twoChar+2; // index to map
 				if (idx < 0 || (twoChar >= 0 && to != 3)) continue; // char in set ?
-				if (Cur[to][0]+CharSiz[to] < Nxt[to][0]) {
-					Nxt[to] = Cur[to].slice(); // extend directly
-					stream(Nxt[to], idx, CharSiz[to]); // add char
-				}
-				for (frm = 0; frm < 5; frm++) // encode char by shift from
-					if (frm != to && Cur[frm][0]+ShftLen[frm][to]+CharSiz[to] < Nxt[frm][0]) {
+				for (frm = 0; frm < 5; frm++) // encode char
+					if (Cur[frm][0]+ShftLen[frm][to]+CharSiz[to] < Nxt[frm][0]) {
 						Nxt[frm] = Cur[frm].slice();
-						stream(Nxt[frm], to == 3 ? 0 : frm < 4 ? 28 : 15, CharSiz[frm]); // add shift
-						stream(Nxt[frm], idx, 5); // add char
+						if (frm != to) // add shift
+							stream(Nxt[frm], to == 3 ? 0 : frm < 4 ? 28 : 15, CharSiz[frm]);
+						stream(Nxt[frm], idx, CharSiz[to]); // add char
 					}
 			}
 			Nxt[5][0] += numBytes++ == 31 ? 19 : 8; // binary exeeds 31 bytes
@@ -556,8 +533,9 @@ function aztec(setCell,text,sec,lay) { // make Aztec bar code
 		}
 		binary(Cur[5], text.length); // encode remaining bytes
 		enc = Cur.reduce(function(a,b) { return a[0] < b[0] ? a : b; }); // get shortest sequence
-		i = b-enc[0]%b; if (i < b) enc[enc.length-1] |= (1<<i)-1; // add padding
-		el = (enc.shift()+i)/b; // get encoding length
+		i = b-enc[0]%b; if (i < b) stream(enc,(1<<i)-1,i); // padding
+		enc.pop(); // remove 0-byte
+		el = enc.shift()/b|0; // get encoding length
 	}
 	if (el > 1660) return 0; // message too long
 	typ = j > 608 || el > 64 ? 14 : 11; // full or compact Aztec finder size
@@ -599,7 +577,7 @@ function aztec(setCell,text,sec,lay) { // make Aztec bar code
 		x = -typ; y = x-1; // start of layer 1 at top left
 		j = l = (3*typ+9)/2; // length of inner side
 		var dx = 1, dy = 0; // direction right
-		while ((c = enc.pop()) != undefined) // data in reversed order inside to outside
+		while ((c = enc.pop()) !== undefined) // data in reversed order inside to outside
 			for (i = b/2; i-- > 0; c >>= 2) {
 				if (c&1) setCell(ctr+x,ctr+y); // odd bit
 				move(dy,-dx); // move across
@@ -628,7 +606,7 @@ function aztec(setCell,text,sec,lay) { // make Aztec bar code
 	for (i = typ-2; i-- > 0; mod >>= 4) enc[i] = mod&15; // mode to 4 bit words
 	rs((typ+5)/2,15,19); // add 5/6 words error correction
 	enc.push(0); j = lay ? 0 : 10; // XOR Aztec rune data
-	for (i = 0; i < b; i++) stream(enc,j^enc[i+1],4); // 8/16 words to 4 sides
+	for (i = 1; i <= b; i++) stream(enc,j^enc[i],4); // 8/16 words to 4 sides
 	for (i = 2-typ, j = 1; i < typ-1; i++, j += j) { // layout mode data
 		if (typ == 7 && i == 0) i++; // skip reference grid
 		if (enc[b+1]&j) setCell(ctr-i,ctr-typ); // top
@@ -723,8 +701,8 @@ function toPath(mat) { // matrix of 0/1 pixel image
 				mat[y][x] = (d ^= mat[y][x]>>1)^mat[y][x]&1; // invert pixels inside, clr marking
 	}
 	d = document.createElementNS("http://www.w3.org/2000/svg","path");
-    d.setAttribute('d', p); // convert image to path
-    d.setAttribute('style', 'fill-rule: evenodd');
+	d.setAttribute('d', p); // convert image to path
+	d.setAttribute('style', 'fill-rule: evenodd');
 	return d; // <path d='M0 0H1V2H2V0H3V1H0Z' style='fill-rule: evenodd' />
 }
 
@@ -737,12 +715,12 @@ function toPath(mat) { // matrix of 0/1 pixel image
 * @param max optional: maximum dictionary bits (2-12 - but large dictionaries are slow in js)
 * @return string "data:image/gif;base64,imagedata"
 */
-function toGif(mat,scale,trans,pad,rgb,max) { 
+function toGif(mat, scale, trans, pad, rgb, max) { 
 	var eb = 0, ec = 0, ev = 0, i, c, dic = [], xl = 0; // encoding, pixel dictionary
 	rgb = rgb||[[255,255,255],[0,0,0]]; // default colors black&white only
 	if (!(scale instanceof Array)) scale = [scale||1,scale||1]; // default 1x
 	for (i = mat.length; i--; xl = Math.max(xl,mat[i].length)); // get max width of matrix
-	if (pad == undefined) pad = 1+xl/20|0; // padding around barcode
+	if (pad === undefined) pad = 1+xl/20|0; // padding around barcode
 	function put(val, bits) { // raster data stream
 		ev |= (val<<eb)&255;
 		val >>= 8-eb;
@@ -761,7 +739,7 @@ function toGif(mat,scale,trans,pad,rgb,max) {
 		enc += String.fromCharCode(c[0],c[1],c[2]);
 		dic[i] = String.fromCharCode(i); // init dictionary
 	}
-	if (trans != undefined) 
+	if (trans !== undefined) 
 		enc += String.fromCharCode(33,249,4,1,0,0,trans,0); // extension block transparent color
 	if (colorBits++ == 0) { colorBits++; colors = 4; dic.push(""); dic.push(""); } // black&white image
 	enc += ",\0\0\0\0"+enc.substr(6,4)+String.fromCharCode(0,colorBits,255); // local descriptor, raster data block
