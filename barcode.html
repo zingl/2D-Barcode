@@ -9,25 +9,66 @@
   <script type="text/javascript" src="kanji.js"></script> <!-- unicode conversion string, omit if kanji encoding in QRCode isn't needed -->
   <link rel="Stylesheet" type="text/css" href="barcode.css" />
   <link rel="SHORTCUT ICON" href="favicon.ico" />
+  <style>
+  
+	[tabs] {
+		display: flex;
+		position: fixed;
+		z-index:2;
+		padding: 0px;
+		font-size: 1em;
+		padding: 5px 20px;
+		width: 700px;
+		border-right:0px;
+	}
+	[tabs] > * {
+		flex:1;
+		font-size: 1.5em;
+		padding: 10px 20px;
+		cursor: pointer;
+		border: 1px solid #aaa;
+		text-align: center;
+		margin-top: -1px;
+		border-right: 1px solid #aaa;
+		background: #eff;
+	}
+	[tabs] > :hover {
+		color: #036;
+		background: #ccc;
+	}
+	[tabs] .active {
+		background: #80DFFF;
+		cursor: auto;
+		border-right:0px;
+		border-left:0px;
+	}
+	[tabs] a {
+		text-decoration: none;
+	}
+  </style>
   <script type="text/javascript">
 	//<![CDATA[
 	  window.onload = function() {    
 		draw();
 		ticktack(0);
+		with (document.getElementById("[at]").firstChild.parentNode) {
+			setAttribute("href", getAttribute("href").replace("qay", "@")); 
+		}
 	  }
+		function Psns(ml) { return 'to:'+ ml + 'qay'; }
 	  var s = 1; // scale
 	  function ticktack(i) { // date/time as animated barcode background image
-		if ((i&7)==0) {
-			var s = Math.min(800,document.body.clientWidth)/12, bg = i?back2:back1;
-			bg.setAttribute('width', s*12);
-			bg.setAttribute('height', s*36);
-			bg = bg.firstElementChild;
-			bg.replaceChild(toPath(toMatrix(datamatrix, Date().substr(0,24), true)),bg.firstElementChild);
-			bg.setAttribute('transform','scale('+s+') translate(0,36) rotate(-90)');
-		}
-		back1.setAttribute('opacity', (7-Math.abs(i-8))/4);
-		back2.setAttribute('opacity', (Math.abs(i-8)-1)/4);
-		setTimeout(ticktack,i&7?32:1000-new Date().getMilliseconds(),15&i+1);
+		var s = Math.min(800,document.body.clientWidth)/12, bg = i?back2:back1;
+		bg.setAttribute('width', s*12);
+		bg.setAttribute('height', s*36);
+		bg = bg.firstElementChild;
+		bg.replaceChild(toPath(toMatrix(datamatrix, Date().substr(0,24), true)),bg.firstElementChild);
+		bg.setAttribute('transform','scale('+s+') translate(0,37) rotate(-90)');
+		back1.parentNode.style.transitionTimingFunction = "cubic-bezier(0.5,"+(1-i)+",1,1)";
+		back2.parentNode.style.transitionTimingFunction = "cubic-bezier(0.5,"+i+",1,1)";
+		back1.parentNode.style.opacity = 1-i;
+		back2.parentNode.style.opacity = i;
+		setTimeout(ticktack,1000,1-i);
 	  }
 	  function getText() { // encode chars >127 for reader conformity
 			return unescape(encodeURIComponent(form.text.value)); // unicode to UTF-8
@@ -39,7 +80,7 @@
 		if (dm.length == 0) { s = 2; tdm.innerHTML="Message too long for Data Matrix."; }
 		else {
 			tdm.innerHTML = 'Data Matrix '+dm[1].length+'x'+dm.length+' cells '+(form.bg.checked ? '(GIF)' : '(SVG path)');
-			s = Math.floor((400+dm[1].length)/(dm[1].length+1)); // scale
+			s = Math.floor((400+dm[1].length)/(dm[1].length+(form.bg.checked ? 5 : 1))); // scale
 			svg.parentNode.setAttribute('height', s*dm.length+5);
 			svg.parentNode.setAttribute('width', form.bg.checked ? 0 : s*dm[1].length+5);
 			svg.parentNode.setAttribute('title', "Content: "+text);
@@ -50,7 +91,7 @@
 			var g = toPath(form.bg.checked ? [[0]] : dm); // convert image to SVG path
 			g.setAttribute('transform', 'scale(' + s + ')');
 			svg.replaceChild(g,svg.firstElementChild);
-			if (dm[1].length+2 > 2*dm.length) { // different width/height: draw both square and rectangular 
+			if (dm[1].length > 4+dm.length) { // different width/height: draw both square and rectangular 
 				g = document.createElementNS('http://www.w3.org/2000/svg','g');
 				dm = datamatrix(function (x,y) { // setCell as SVG rectangle
 					var r = document.createElementNS('http://www.w3.org/2000/svg','rect');
@@ -78,30 +119,32 @@
 		draw_aztec();
 		// draw bar code 128 
 		dm = toMatrix(code128,text); // call bar code function, return as matrix
+		dm[0].push(0,0,0); dm[0].unshift(0,0,0); // padding
 		if (dm[0].length < 800) 
-			c128.src = toGif(dm,[Math.floor(900/(dm[0].length+100)),50],form.bg.checked ? 3 : 0); // draw code 128
+			c128.src = toGif(dm,[Math.floor(900/(dm[0].length+100)),50],form.bg.checked ? 3 : 0, 0); // draw code 128
 		else 
 			c128.src = ""; // too long
-		t128.innerHTML = dm[0].length+" modules";
+		t128.innerHTML = (dm[0].length-6)+" modules";
 	  }
 	  function draw_qr() { // create QR barcode as GIF image
 		for (var i = 0; i < 4; i++) if (qr.qual[i].checked) break; // get quality level
 		var r = quickresponse(form.text.value,document.qr.qual[i].value,qr.micro.checked?-3:1);
 		if (r.length == 0) { alert("Message too long for QR!"); return; }
 		tqr.innerHTML = (r.length < 20 ? 'Micro QR Code ' : 'QR Code ')+r.length+'x'+r.length+' cells (GIF)';
-		gif.src = toGif(r,s,form.bg.checked ? 3 : 0); // BG transparent/white
+		gif.src = toGif(r,s,form.bg.checked ? 3 : 0,form.bg.checked ? undefined : 0); // BG transparent/white
 		gif.title = "Content: "+getText();
 	  }
 	  function draw_aztec() { // create Aztec barcode as canvas (PNG)
 		var cvs = document.createElement('canvas'), ctx = cvs.getContext('2d');
-		cvs.width = cvs.height = 700; ctx.fillStyle = 'white';
+		cvs.width = cvs.height = 900; ctx.fillStyle = 'white';
 		if (form.bg.checked) ctx.fillRect(0,0,700,700); // white BG
-		var i = aztec(function(x,y) { ctx.rect(x*s,y*s,s,s); }, getText(),isNaN(fazt.sec.value)?23:fazt.sec.value); // setCell of array
+		var b = form.bg.checked ? 20 : 0; // padding
+		var i = aztec(function(x,y) { ctx.rect(x*s+b,y*s+b,s,s); }, getText(),isNaN(fazt.sec.value)?23:fazt.sec.value); // setCell of array
 		if (i == 0) { alert("Message too long for Aztec!"); return; }
 		tazt.innerHTML = 'Aztec '+(i < 12 ? 'rune ' : i < 28 ? 'compact ' : '')+i+'x'+i+' cells (PNG)';
 		ctx.fillStyle = "#000"; ctx.fill(); 
 		var tcvs = document.createElement('canvas'); // copy canvas
-		tcvs.width = tcvs.height = i*s; // to crop image
+		tcvs.width = tcvs.height = i*s+2*b; // to crop image
 		tcvs.getContext('2d').drawImage(cvs,0,0); 
 		png.src = tcvs.toDataURL(); // set barcode image
 		png.title = "Content: "+getText();
@@ -112,13 +155,15 @@
 </head>
 
 <body>
-  <div style="position:absolute;z-index:-1;">
+		<div tabs class="bc"><a href="bresenham.html"><div>Bresenham</div></a>
+		<div  class="active">Barcode</div><a href="blurring.html"><div >Blurring</div></a></div>
+  <div style="position:absolute;z-index:-1;opacity:0;transition: opacity 0.5s ease-in-out;">
 	<svg id=back1>
 	  <g style="fill:#b4f2d4;"><rect /></g>
 	  <desc>date/time animated barcode background</desc>
 	</svg>
   </div>
-  <div style="position:absolute;z-index:-1;">
+  <div style="position:absolute;z-index:-1;opacity:0;transition: opacity 0.5s ease-in-out;">
 	<svg id=back2>
 	  <g style="fill:#b4f2d4;"><rect /></g>
 	  <desc>date/time animated barcode background</desc>
@@ -127,13 +172,7 @@
   <table>
 	<tr>
 	  <td>
-		<h1>2D Barcode</h1>
-		<!--<h2><a href="https://github.com/zingl/2D-Barcode"><img width="200" src="barcode.gif" style="opacity: 0.6;" alt="logo" /></a></h2>-->
-	  </td>
-	</tr>
-	<tr>
-	  <td>
-		<h2>2D Barcode Generator</h2>
+		<h2 style="margin-top:3em">2D Barcode Generator</h2>
 	  </td>
 	</tr>
 	<tr>
@@ -193,15 +232,15 @@
 		<p id="tqr" style="text-align: center;">QR barcode</p>
 	  </td>
 	  <td valign="top">
-		<h3 style="text-align:left;text-indent:40px;">QR</h3>
+		<h3 style="text-align:left;text-indent:40px;">QR Code</h3>
 		<form name="qr">
 		  <p>quality level:</p>
-		  <p><label><input type="radio" name="qual" value="L" title="low" checked="checked" onclick="draw_qr()" /> L &nbsp; 7%</label></p>
-		  <p><label><input type="radio" name="qual" value="M" title="medium" onclick="draw_qr()" /> M 15%</label></p>
-		  <p><label><input type="radio" name="qual" value="Q" title="quartile" onclick="draw_qr()" /> Q 25%</label></p>
-		  <p><label><input type="radio" name="qual" value="H" title="high" onclick="draw_qr()" /> H 30%</label></p>
+		  <p><label><input type="radio" name="qual" value="L" title="low" checked="checked" onclick="draw_qr()" /> L &nbsp; 7% (low)</label></p>
+		  <p><label><input type="radio" name="qual" value="M" title="medium" onclick="draw_qr()" /> M 15% (medium)</label></p>
+		  <p><label><input type="radio" name="qual" value="Q" title="quartile" onclick="draw_qr()" /> Q 25% (quartile)</label></p>
+		  <p><label><input type="radio" name="qual" value="H" title="high" onclick="draw_qr()" /> H 30% (high)</label></p>
 		  <p><br /></p>
-		  <p><label><input type="checkbox" name="micro" title="micro QR" onclick="draw_qr()" checked="checked" /> micro QR</label></p>
+		  <p><label><input type="checkbox" name="micro" title="micro QR" onclick="draw_qr()"  /> micro QR</label></p>
 		</form>
 	  </td>
 	</tr>
@@ -244,25 +283,32 @@
   <p><b style="color:green">+</b> Available for office programs Excel, Access and Calc.</p>
   <p><b style="color:green">+</b> Automatic mode encoding and barcode size selection.</p>
   <p><b style="color:green">+</b> Algorithm could be easily adapted to individual requirements.</p>
-  <p><b style="color:green">+</b> Free and open-source software program.</p>
-  <p><b style="color:green">+</b> size optimization for mixed data types in one symbol.</p>
+  <p><b style="color:green">+</b> Encodes all unicode chars in utf-8.</p>
+  <p><b style="color:green">+</b> Free and open-source software program (MIT license).</p>
+  <p><b style="color:green">+</b> Smallest possible barcode symbol for all kind of data.</p>
   <p><b style="color:darkred">&#8211;</b> no handling of special codes like 
-	<a href= "http://en.wikipedia.org/wiki/GS1-128">FNC1</a> or <a href= "http://en.wikipedia.org/wiki/Extended_Channel_Interpretation">ECI</a>.</p>
+	<a href= "http://en.wikipedia.org/wiki/GS1-128">FNC1</a>, <a href= "http://en.wikipedia.org/wiki/Extended_Channel_Interpretation">ECI</a> or structure append.</p>
 
   <h4>Advantages</h4>
-  <p>Universal: runs on every browser, operating system or platform.</p>
-  <p>Flexible: outputs vector or pixel images in adjustable design.</p>
-  <p>Adaptable: modify or convert simple source code to your own desire.</p>
+  <p><i>Universal:</i> runs on every browser, operating system or platform.</p>
+  <p><i>Flexible:</i> outputs vector or pixel images in adjustable design.</p>
+  <p><i>Adaptable:</i> modify or convert simple source code to your own desire.</p>
 
-  <h3 style="text-align:left;text-indent:40px;color:navy">Download</h3>
-  <p>The barcode program is free and open source software.</p>
+  <h3 style="text-align:left;text-indent:40px;color:navy">Download V2.0</h3>
+  <p>The barcode program is open source software at <a href="https://github.com/zingl/2D-Barcode/">GitHub</a> (MIT license).</p>
   <p>The algorithm is available as <b>Jasvascript</b>: <a href="barcode.js">barcode.js</a>.</p>
-  <p>For <a href="http://office.microsoft.com/">MS Office</a> it is available as <b>Excel</b>: <a href="barcode.xlsm">barcode.xlsm</a> and <b>Access</b>: <a href="barcode.accdb">barcode.accdb</a>.</p>
-  <p>And for <a href="https://www.libreoffice.org/">Open/LibreOffice</a> it is available as <b>Calc</b>: <a href="barcode.ods">barcode.ods</a>.</p>
+  <p>For <a href="http://office.microsoft.com/">MS Office</a> it is available as <b>Excel</b>: 
+	<a href="https://github.com/zingl/2D-Barcode/raw/master/barcode.xlsm">barcode.xlsm</a> and <b>Access</b>: 
+	<a href="https://github.com/zingl/2D-Barcode/raw/master/barcode.accdb">barcode.accdb</a>.</p>
+  <p>And for <a href="https://www.libreoffice.org/">Open/LibreOffice</a> it is available as <b>Calc</b>
+	template: <a href="https://github.com/zingl/2D-Barcode/raw/master/barcode.oxt">barcode.oxt</a> 
+	and example sheet: <a href="https://github.com/zingl/2D-Barcode/raw/master/barcode.ods">barcode.ods</a>.</p>
+  <p>Install the template in Calc by opening it or: Tools > Extension Manager > Add </p>
   <p>Go do something cool with it.</p>
 
   <h3 style="text-align:left;text-indent:40px;color:navy;">Information about barcodes</h3>
-  <h4>Data Matrix</h4>
+  <p><a href="https://barmatrixcode.de/">BarMatrixCode The Bar- and Matrixcode information</a> (german)</p>
+   <h4>Data Matrix</h4>
   <p><a href="http://en.wikipedia.org/wiki/Data_Matrix">Wikipedia Data Matrix</a></p>
   <p><a href="http://www.iso.org/iso/catalogue_detail.htm?csnumber=44230">ISO/IEC 16022:2006, 
 	Data Matrix barcode symbology specification <small>(CHF 198.-)</small></a></p>
@@ -287,9 +333,15 @@
 
   <h4>Programs</h4>
   <p><a href="http://bwipp.terryburton.co.uk/">Barcode Writer in Pure PostScript</a></p>
-  <p><a href="http://www.okapibarcode.org.uk/">Zint/OkapiBarcode Barcode Generator</a></p>
+  <p><a href="http://zint.org.uk/">Zint/OkapiBarcode Barcode Generator</a></p>
 
   <hr noshade="noshade" size="1" />
-  <p>Copyright &#169; Alois Zingl, Vienna, Austria</p>
+  <p>Copyright &#169; Alois Zingl, Vienna, Austria, Email: <script type="text/javascript">
+	//<![CDATA[
+	var r = "&#46at";
+	document.write('<a title="Send mail!" id="[at]" href="m' + 'ail'+ Psns('easyfilter') + 
+		"chello" + r + '"><img align="absbottom" src="email.gif" border="0"><\/a>');
+	//]]>
+  </script><noscript><img align="absbottom" src="email.gif" /></noscript>, last update July 2020.</p>
 </body>
 </html>

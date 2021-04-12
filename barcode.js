@@ -1,4 +1,4 @@
-/** 2D barcode symbol creation by javascript
+	/** 2D barcode symbol creation by javascript
 * @author alois zingl
 * @version V2.0 july 2020
 * @copyright MIT open-source license software
@@ -502,7 +502,7 @@ function aztec(setCell, text, sec, lay) { // make Aztec bar code
 		if (lay) b = Math.max(b, lay < 3 ? 6 : lay < 9 ? 8 : lay < 23 ? 10 : 12); // parameter
 		if (c >= b) break; // fits in word size
 
-		var Cur = [[0,0],[e,0],[e,0],[e,0],[e,0],[e,0]]; // current sequence for [U,L,M,P,D,B]
+		var Cur = [[0,0],[e],[e],[e],[e],[e]]; // current sequence for [U,L,M,P,D,B]
 		for (i = 0; i < text.length; i++) { // calculate shortest message sequence
 			for (var to = 0; to < 6; to++) // check for shorter latch to
 				for (var frm = 0; frm < 6; frm++) // if latch from
@@ -538,10 +538,11 @@ function aztec(setCell, text, sec, lay) { // make Aztec bar code
 		el = enc.shift()/b|0; // get encoding length
 	}
 	if (el > 1660) return 0; // message too long
-	typ = j > 608 || el > 64 ? 14 : 11; // full or compact Aztec finder size
+	typ = j > 608 || el > 64 || (lay && lay > 4) ? 14 : 11; // full or compact Aztec finder size
 	var mod = parseInt(text); // Aztec rune possible?
 	if (mod >= 0 && mod < 256 && mod+"" == text && !lay) lay = 0; // Aztec rune 0-255
 	else lay = Math.max(lay||0,Math.min(32,(Math.ceil((Math.sqrt(j+typ*typ)-typ)/4)))); // needed layers
+	console.log(Math.ceil((Math.sqrt(j+typ*typ)-typ)/4));
 	var ec = Math.floor((8*lay*(typ+2*lay))/b)-el; // # of error words
 	typ >>= 1; ctr = typ+2*lay; ctr += (ctr-1)/15|0; // center position
 
