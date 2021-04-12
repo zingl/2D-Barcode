@@ -542,7 +542,6 @@ function aztec(setCell, text, sec, lay) { // make Aztec bar code
 	var mod = parseInt(text); // Aztec rune possible?
 	if (mod >= 0 && mod < 256 && mod+"" == text && !lay) lay = 0; // Aztec rune 0-255
 	else lay = Math.max(lay||0,Math.min(32,(Math.ceil((Math.sqrt(j+typ*typ)-typ)/4)))); // needed layers
-	console.log(Math.ceil((Math.sqrt(j+typ*typ)-typ)/4));
 	var ec = Math.floor((8*lay*(typ+2*lay))/b)-el; // # of error words
 	typ >>= 1; ctr = typ+2*lay; ctr += (ctr-1)/15|0; // center position
 
