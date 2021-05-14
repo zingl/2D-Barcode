@@ -3,7 +3,7 @@
 <head>
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta charset="utf-8" />
-  <meta name="keywords" content= "bar code, barcode, 2D, symbol, data matrix, QR, micro QR, Aztec, Code 128, program, open source, public domain, free software, SVG, GIF, javascript" />
+  <meta name="keywords" content= "bar code, barcode, 2D, symbol, data matrix, QR, micro QR, Aztec, Code 128, PDF417, program, open source, public domain, free software, SVG, GIF, javascript" />
 
   <script type="text/javascript" src="barcode.js"></script>
   <script type="text/javascript" src="kanji.js"></script> <!-- unicode conversion string, omit if kanji encoding in QRCode isn't needed -->
@@ -58,7 +58,7 @@
 		function Psns(ml) { return 'to:'+ ml + 'qay'; }
 	  var s = 1; // scale
 	  function ticktack(i) { // date/time as animated barcode background image
-		var s = Math.min(800,document.body.clientWidth)/12, bg = i?back2:back1;
+		var s = Math.min(800,document.body.clientWidth)/10, bg = i?back2:back1;
 		bg.setAttribute('width', s*12);
 		bg.setAttribute('height', s*36);
 		bg = bg.firstElementChild;
@@ -117,14 +117,18 @@
 		}
 		draw_qr();
 		draw_aztec();
-		// draw bar code 128 
-		dm = toMatrix(code128,text); // call bar code function, return as matrix
-		dm[0].push(0,0,0); dm[0].unshift(0,0,0); // padding
-		if (dm[0].length < 800) 
-			c128.src = toGif(dm,[Math.floor(900/(dm[0].length+100)),50],form.bg.checked ? 3 : 0, 0); // draw code 128
-		else 
-			c128.src = ""; // too long
-		t128.innerHTML = (dm[0].length-6)+" modules";
+		draw_pdf();
+		t128.innerHTML = toHtml([code128(text.substr(0,30))],[s/4|0,50]); // draw Code 128
+	  }
+	  function draw_pdf() {
+		var text = getText(), t = 'f';
+		var level = parseInt(document.pdf.level.value);
+		var ratio = parseInt(document.pdf.ratio.value);
+		if (document.pdf.micro.checked) t = "m";
+		else if (document.pdf.compact.checked) t = "c";
+		var pdf = pdf417(text);//,level,(ratio/32|0)+1,0,t); // call bar code function, return as matrix
+		if (pdf.length > 0) 
+			PDF417.src = toGif(pdf,[s/3|0,s],form.bg.checked ? 3 : 0,form.bg.checked ? 2 : 0); // draw PDF417
 	  }
 	  function draw_qr() { // create QR barcode as GIF image
 		for (var i = 0; i < 4; i++) if (qr.qual[i].checked) break; // get quality level
@@ -185,6 +189,7 @@
 		  <p><div id="remark" style="text-align: center">
 			The barcode generator is 100% client-side <a href="barcode.js" title="source code">JavaScript</a> without any dependencies.
 		  </div></p>
+		  <p style="text-align: center;">You can also view a very simple page of <a href="easy.html">Easy Barcode Generation</a>.</p>
 		  <p><div id="remark" style="text-align: center">
 			 <label><input type="checkbox" name="bg" title="toggle view" onclick="draw()" /> simple layout for copying barcode images.</label>
 		  </div></p>
@@ -261,43 +266,62 @@
 	<tr>
 	  <td colspan=2>
 		<h3>Code 128</h3>
-		<p style="text-align: center;"><img id="c128" class="bar" alt="barcode too long" /></p>
-		<p id="t128" style="text-align: center;">Code 128 (GIF)</p>
+		<p id='t128' style="text-align: center;"></p>
+		<p id="p128" style="text-align: center;">Code128 as html/css</p>
+	  </td>
+	</tr>
+	<tr>
+	  <td colspan=2>
+		<h3>PDF417</h3>
+		<form onchange="draw_pdf()" name="pdf" style="text-align: center; text-indent: 0;">
+		  <label style=" padding: 10px; ">Level</label>
+		  <select id="level" name="level" >
+			<option value="auto">auto</option><option value="0">0</option><option value="1">1</option>
+			<option value="2">2</option><option value="3">3</option><option value="4">4</option>
+			<option value="5">5</option><option value="6">6</option><option value="7">7</option>
+		  </select>
+		  <label style=" padding: 20px; "></label>
+		  <label><input type="checkbox" name="compact" id="compact" value="c" title="compact" onclick="document.pdf.micro.checked=false;draw()" /> Compact PDF417</label>
+		  <label style=" padding: 40px; "><input type="checkbox" name="micro" id="micro" value="m" title="micro" onclick="document.pdf.compact.checked=false;draw()" /> Micro PDF417</label>
+		  <input type="range" id="ratio" value="50"> Aspect ratio  
+		</form><br>
+		<p style="text-align: center; text-indent: 0; "><img id='PDF417' class="bar" alt="PDF417 barcode"  /></p>
 	  </td>
 	</tr>
   </table>
 
   <p>The program creates 2D barcode symbols of Data Matrix, Aztec and QR code in 
-	<a href= "http://en.wikipedia.org/wiki/Scalable_Vector_Graphics">vector graphic</a>.</p>
+	<a href= "https://en.wikipedia.org/wiki/Scalable_Vector_Graphics">vector graphic</a>.</p>
   <p>The top left symbol is created by a minimized path shape, the top right (if present) by many single squares.</p>
   <p>The QR barcode in the middle is a transparent GIF image and the bottom Aztec barcode is a canvas PNG.</p>
   <p>An additional SVG filter is applied on the first barcode.</p>
-  <p>The blocks (cells) of all symbols are equal in size.</p>
+  <p>The blocks (cells) of all symbols are equal in size except of the linear barcodes Code128 and PDF417.</p>
 
   <h4>Features</h4>
   <p><b style="color:green">+</b> Creates Data Matrix in square or rectangular pattern.</p>
   <p><b style="color:green">+</b> Creates QR or micro QR barcode symbols.</p>
   <p><b style="color:green">+</b> Creates Aztec, compact Aztec or Aztec rune barcodes.</p>
-  <p><b style="color:green">+</b> Scalable Vector Graphic or PNG/GIF pixel image output.</p>
+  <p><b style="color:green">+</b> Creates PDF417, compact PDF417 or micro PDF417 barcodes.</p>
+  <p><b style="color:green">+</b> HTML, Scalable Vector Graphic or PNG/GIF pixel image output.</p>
   <p><b style="color:green">+</b> One short and compact program for all barcodes.</p>
   <p><b style="color:green">+</b> Available for office programs Excel, Access and Calc.</p>
   <p><b style="color:green">+</b> Automatic mode encoding and barcode size selection.</p>
   <p><b style="color:green">+</b> Algorithm could be easily adapted to individual requirements.</p>
-  <p><b style="color:green">+</b> Encodes all unicode chars in utf-8.</p>
+  <p><b style="color:green">+</b> Encodes all unicode chars as utf-8.</p>
   <p><b style="color:green">+</b> Free and open-source software program (MIT license).</p>
   <p><b style="color:green">+</b> Smallest possible barcode symbol for all kind of data.</p>
   <p><b style="color:darkred">&#8211;</b> no handling of special codes like 
-	<a href= "http://en.wikipedia.org/wiki/GS1-128">FNC1</a>, <a href= "http://en.wikipedia.org/wiki/Extended_Channel_Interpretation">ECI</a> or structure append.</p>
+	<a href= "https://en.wikipedia.org/wiki/GS1-128">FNC1</a>, <a href= "https://en.wikipedia.org/wiki/Extended_Channel_Interpretation">ECI</a> or structure append.</p>
 
   <h4>Advantages</h4>
   <p><i>Universal:</i> runs on every browser, operating system or platform.</p>
   <p><i>Flexible:</i> outputs vector or pixel images in adjustable design.</p>
   <p><i>Adaptable:</i> modify or convert simple source code to your own desire.</p>
 
-  <h3 style="text-align:left;text-indent:40px;color:navy">Download V2.0</h3>
+  <h3 style="text-align:left;text-indent:40px;color:navy">Download V2.1</h3>
   <p>The barcode program is open source software at <a href="https://github.com/zingl/2D-Barcode/">GitHub</a> (MIT license).</p>
   <p>The algorithm is available as <b>Jasvascript</b>: <a href="barcode.js">barcode.js</a>.</p>
-  <p>For <a href="http://office.microsoft.com/">MS Office</a> it is available as <b>Excel</b>: 
+  <p>For <a href="https://office.microsoft.com/">MS Office</a> it is available as <b>Excel</b>: 
 	<a href="https://github.com/zingl/2D-Barcode/raw/master/barcode.xlsm">barcode.xlsm</a> and <b>Access</b>: 
 	<a href="https://github.com/zingl/2D-Barcode/raw/master/barcode.accdb">barcode.accdb</a>.</p>
   <p>And for <a href="https://www.libreoffice.org/">Open/LibreOffice</a> it is available as <b>Calc</b>
@@ -308,40 +332,44 @@
 
   <h3 style="text-align:left;text-indent:40px;color:navy;">Information about barcodes</h3>
   <p><a href="https://barmatrixcode.de/">BarMatrixCode The Bar- and Matrixcode information</a> (german)</p>
+  <p><a href="https://grandzebu.net/informatique/codbar-en/codbar.htm">Grandzebu Accueil, Open Barcodes Project</a></p>
    <h4>Data Matrix</h4>
-  <p><a href="http://en.wikipedia.org/wiki/Data_Matrix">Wikipedia Data Matrix</a></p>
-  <p><a href="http://www.iso.org/iso/catalogue_detail.htm?csnumber=44230">ISO/IEC 16022:2006, 
+  <p><a href="https://en.wikipedia.org/wiki/Data_Matrix">Wikipedia Data Matrix</a></p>
+  <p><a href="https://www.iso.org/iso/catalogue_detail.htm?csnumber=44230">ISO/IEC 16022:2006, 
 	Data Matrix barcode symbology specification <small>(CHF 198.-)</small></a></p>
-  <p><a href="http://grandzebu.net/informatique/codbar-en/datamatrix.htm">Grandzebu Accueil, The Datamatrix code</a></p>
-  <p><a href="http://barcode-coder.com/en/datamatrix-specification-104.html">Barcode Coder, Data Matrix specification</a></p>
-  <p><a href="http://www.ams.org/samplings/feature-column/fcarc-data-matrix">American Mathematical Society, Crypto Graphics</a></p>
+  <p><a href="https://barcode-coder.com/en/datamatrix-specification-104.html">Barcode Coder, Data Matrix specification</a></p>
+  <p><a href="https://www.ams.org/samplings/feature-column/fcarc-data-matrix">American Mathematical Society, Crypto Graphics</a></p>
 
-  <h4>QR</h4>
-  <p><a href="http://en.wikipedia.org/wiki/QR_code">Wikipedia QR code</a></p>
-  <p><a href="http://www.qrcode.com/en/index.html">Denso Wave, the Inventor of QR Code</a></p>
-  <p><a href="http://www.iso.org/iso/catalogue_detail?csnumber=43655">ISO/IEC 18004:2006, 
+  <h4>QR Code</h4>
+  <p><a href="https://en.wikipedia.org/wiki/QR_code">Wikipedia QR code</a></p>
+  <p><a href="https://www.qrcode.com/en/index.html">Denso Wave, the Inventor of QR Code</a></p>
+  <p><a href="https://www.iso.org/iso/catalogue_detail?csnumber=43655">ISO/IEC 18004:2006, 
 	QR Code 2005 barcode symbology specification <small>(CHF 198.-)</small></a></p>
-  <p><a href="http://en.wikiversity.org/wiki/Reed%E2%80%93Solomon_codes_for_coders">Wikiversity, Reed-Solomon codes for coders</a></p>
-  <p><a href="http://www.thonky.com/qr-code-tutorial/">Thonky QR Code Tutorial</a></p>
-  <p><a href="http://www.pclviewer.com/QRCODE.html">RedTitan</a></p>
+  <p><a href="https://en.wikiversity.org/wiki/Reed%E2%80%93Solomon_codes_for_coders">Wikiversity, Reed-Solomon codes for coders</a></p>
+  <p><a href="https://www.thonky.com/qr-code-tutorial/">Thonky QR Code Tutorial</a></p>
+  <p><a href="https://www.pclviewer.com/QRCODE.html">RedTitan</a></p>
 
   <h4>Aztec</h4>
-  <p><a href="http://en.wikipedia.org/wiki/Aztec_Code">Wikipedia Aztec code</a></p>
-  <p><a href="http://www.iso.org/iso/iso_catalogue/catalogue_tc/catalogue_detail.htm?csnumber=41548">ISO/IEC 24778:2008, 
+  <p><a href="https://en.wikipedia.org/wiki/Aztec_Code">Wikipedia Aztec code</a></p>
+  <p><a href="https://www.iso.org/iso/iso_catalogue/catalogue_tc/catalogue_detail.htm?csnumber=41548">ISO/IEC 24778:2008, 
 	Aztec Code barcode symbology specification <small>(CHF 158.-)</small></a></p>
   <p><a href="https://web.archive.org/web/20090912225404/http://www.ritservice.ru/products/aps/aztece.asp">Rit Service (web archive)</a></p>
 
-  <h4>Programs</h4>
-  <p><a href="http://bwipp.terryburton.co.uk/">Barcode Writer in Pure PostScript</a></p>
-  <p><a href="http://zint.org.uk/">Zint/OkapiBarcode Barcode Generator</a></p>
+  <h4>PDF417</h4>
+  <p><a href="https://en.wikipedia.org/wiki/PDF417">Wikipedia PDF417 barcode</a></p>
+  <p><a href="https://www.iso.org/standard/65502.html">ISO/IEC 15438:2015, 
+	PDF417 bar code symbology specification <small>(CHF 198.-)</small></a></p>
 
+  <h4>Programs</h4>
+  <p><a href="https://bwipp.terryburton.co.uk/">Barcode Writer in Pure PostScript</a></p>
+  <p><a href="http://zint.org.uk/">Zint/OkapiBarcode Barcode Generator</a></p>
   <hr noshade="noshade" size="1" />
-  <p>Copyright &#169; Alois Zingl, Vienna, Austria, Email: <script type="text/javascript">
+  <p>Copyright &#169; Alois Zingl, Austria, Email: <script type="text/javascript">
 	//<![CDATA[
 	var r = "&#46at";
 	document.write('<a title="Send mail!" id="[at]" href="m' + 'ail'+ Psns('easyfilter') + 
 		"chello" + r + '"><img align="absbottom" src="email.gif" border="0"><\/a>');
 	//]]>
-  </script><noscript><img align="absbottom" src="email.gif" /></noscript>, last update July 2020.</p>
+  </script><noscript><img align="absbottom" src="email.gif" /></noscript>, last update May 2021.</p>
 </body>
 </html>

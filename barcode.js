@@ -1,23 +1,25 @@
-	/** 2D barcode symbol creation by javascript
+/** 2D barcode symbol creation by javascript
 * @author alois zingl
-* @version V2.0 july 2020
+* @version V2.1 May 2021
 * @copyright MIT open-source license software
 * @url https://zingl.github.io/
-* @description the indention of this library is a short and compact implementation to create the 2D barcodes 
-*  of Data Matrix, (micro) QR or Aztec symbols so it could be easily adapted for individual requirements.
-*  Data Matrix and Aztec barcodes immediately  set the cells by a callback function, QR returns an array matrix.
-*  All could be converted to an array matrix, SVG path or GIF image.
+* @description the indention of this library is a short and easy implementation to create the 2D barcodes 
+*  of Data Matrix, QR, Aztec or PDF417 symbols so it could be easily adapted for individual requirements.
+*  Data Matrix and Aztec barcodes immediately set the cells by a callback function, other return an array matrix.
+*  All could be converted to an array matrix, SVG path, html/css or GIF image.
 *  The smallest bar code symbol fitting the data is automatically selected.
 * functions: 
-*	datamatrix(setCell,text,rect)   create Data Matrix barcode
-*	quickresponse(text,level,ver)   create QR and micro QR barcode
-*	aztec(setCell,text,sec,lay)     create Aztec, compact Aztec and Aztec runes
-*	code128(setCell,text)           create Code 128 barcode
-*	toPath(mat)                     convert array matrix to SVG path
-*	toGif(mat,scale,trans,pad,rgb)  convert array matrix to GIF image
-*	toMatrix()                      fill array matrix by call back function setCell
+*	datamatrix(setCell,text,rect)		create Data Matrix barcode
+*	quickresponse(text,level,ver)		create QR and micro QR barcode
+*	aztec(setCell,text,sec,lay)			create Aztec, compact Aztec and Aztec runes
+*	pdf417(text,level,cols,rows,type) 	create PDF417 barcode
+*	code128(text)						create Code 128 barcode
+*	toPath(mat)							convert array matrix to SVG path
+*	toGif(mat,scale,trans,pad,rgb)  	convert array matrix to GIF image
+*	toHtml(mat,size,blocks)				convert array matrix to html/css
+*	toMatrix(function,parameters..) 	fill array matrix by call back function setCell
 *  there is no dependency between functions, just copy the ones you need
-*  'Small is beautiful' - Leopold Kohr.
+*  'Small is beautiful' - Leopold Kohr. 1000 lines for five barcodes in four formats.
 */
 "use strict";
 
@@ -233,7 +235,7 @@ function quickresponse(text, level, ver) { // create QR and micro QR bar code sy
 	var chars = [ "0123456789", // char table for numeric
 				"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:", // alpha
 				String.fromCharCode.apply(null,Array(128).fill(0).map((_,i) => i)), // binary, >127 -> use utf-8
-				typeof kanji === undefined || kanji.length != 7973 ? "" : kanji ]; // kanji char index (in kanji.js)
+				typeof kanji === "undefined" || kanji.length != 7973 ? "" : kanji ]; // kanji char index (in kanji.js)
 	function len(mod,chr) { // get encoding length in 1/6 bits
 		if (chars[mod].indexOf(chr) >= 0) return [20,33,48,78][mod];
 		return mod != 2 ? 1e9 : chr.charCodeAt(0) < 2048 ? 96 : 144; // two/three byte utf-8
@@ -248,7 +250,7 @@ function quickresponse(text, level, ver) { // create QR and micro QR bar code sy
 		while (eb > 7) enc[enc.length] = (val>>(eb -= 8))&255;
 	}
 	/** compute symbol version size, ver < 1: micro QR */
-	ver = ver === undefined ? 1 : ver-1;
+	ver = isNaN(ver) ? 0 : ver-1;
 	do { // increase version till message fits
 		if (++ver >= erc[0].length-3) return []; // text too long for QR
 		if (ver < 2 || ver == 10 || ver == 27) { // recompute stream
@@ -617,13 +619,200 @@ function aztec(setCell, text, sec, lay) { // make Aztec bar code
 	return 2*ctr+1; // matrix size Aztec barcode
 }
 
-/** Code 128 symbol creation according ISO/IEC 15417:2007
-* @param setCell call back drawing function(x,0)
+/**	PDF417 bar code symbol creation according ISO/IEC 15438:2006
+*	creates PDF417, CompactPDF417 or MicroPDF417 bar code symbol as a javascript matrix.
 * @param text to encode
-* @return width of symbol (modules)
+* @param level optional: security level: 0-7; (null for auto 2-5)
+* @param cols optional: # of columns: 1-30 (0 for auto)
+* @param rows optional: # of rows: 3-90 (0 for auto)
+*	for cols / rows > 90 they define an aspect_ratio
+* @param type optional: barcode type (f:full, c:compact, m:micro)
+* @return matrix array of PDF417 symbol ([] if text is too long)
 */
-function code128(setCell, text) {
-	var t = 3, enc = [], i, j, c;
+function pdf417(text, level, cols, rows, type) { // make PDF417
+	var txt = [ "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", // alpha compactation chars
+				"abcdefghijklmnopqrstuvwxyz ", // lower
+				"0123456789&\r\t,:#-.$/+%*=^\r ", // mixed
+				";<>@[\\]_`~!\r\t,:\n-.$/\"|*()?{}'" ]; // punctuation
+	var enc = [], mode = 2; // text alpha
+	var pn = 0, pc = 0;
+	function push(c) { // encoding text compaction
+		if (pn == 1) enc.push(pc*30+c);
+		pn = 1-pn; pc = c*pn; // toggle pn
+	}
+	/** encode text */
+	for (var i = 0; i < text.length; ) {
+		// check for numeric
+		for (var j = 0; j < 45 && i+j < text.length; j++)
+			if (((text.charCodeAt(i+j)-48)&255) > 9) break;
+		if (j > 12 || i+j == text.length) { // numeric compaction
+			if (mode > 0) enc.push(902);
+			var t = BigInt("1"+text.substr(i,j));
+			i += j; j = enc.length; // to numeric
+			for ( ; t > 0; t = t/900n)
+				enc.splice(j,0,parseInt(t%900n));
+			mode = 0; continue;
+		}
+		// check for text
+		for (t = j = 0; j < t+13 && i+j < text.length; j++) {
+			if (((text.charCodeAt(i+j)-32)&255) > 95) break;
+			if (((text.charCodeAt(i+j)-48)&255) > 9) t = j+1; // start digits
+		}
+		if (j > 4 || i+j == text.length) { // text compaction
+			if (mode != 2) enc.push(900); // to text
+			mode = 2; 
+			for (t = j == t+13 ? t : j; t > 0; t--) {
+				var c = text.charAt(i++);
+				var k = txt[mode-2].indexOf(c);
+				if (k < 0) { // switch sub mode
+					if (mode > 4) { push(29); mode = 2; } // exit punctuation
+					for (j = -1; k < 0; ) // get sub mode
+						k = txt[++j].indexOf(c);
+					if (j == 3) // to punctiation ?
+						if (i < text.length && txt[3].indexOf(text.charAt(i)) >= 0) {
+							if (mode < 4) push(28); // first to mixed
+							push(25); mode = 5; // latch to punctuation
+						} else push(29); // shift to punctuation
+					else if (mode == 3 && j == 0) // lower to upper
+						if (i == text.length || txt[1].indexOf(text.charAt(i)) >= 0)
+							push(27); // just one shift from lower to upper
+						else { push(28); push(28); mode = 2; } // latch to upper
+					else { push([28,27,28][j]); mode = j+2; } // latch to alpha/lower/mixed
+				}
+				push(k); // add char
+			}
+			if (pn > 0) push(29); // padding
+			continue;
+		}
+		var b = 1; // byte compaction
+		for (j = 1; j < b+5 && i+j < text.length; j++) // get first 5 non-bytes
+			if (((text.charCodeAt(i+j)-32)&255) > 95) b = j+1;
+		if (i+j == text.length && mode < 2) b = text.length-i; // no 5 non-bytes beford eot
+		if (mode > 1 && b == 1 && text.length-i > 4) { // just one byte
+			enc.push(913); // shift byte
+			enc.push(text.charCodeAt(i++)&255);
+			continue;
+		}
+		b = b < j ? j : b;
+		if (mode != 1) enc.push(b%6 == 0 ? 924 : 901);
+		mode = 1; // latch byte compaction
+		for ( ; b > 5; b -= 6) { // multiple of 6 bytes compaction
+			for (j = t = 0; j < 6; j++)	t = t*256+(text.charCodeAt(i++)&255);
+			for (c = enc.length; --j > 0; t = Math.floor(t/900)) enc.splice(c,0,t%900);
+		}
+		while (b-- > 0) enc.push(text.charCodeAt(i++)&255); // remaining byte compaction
+	}
+	/** compute symbol size and barcode type */
+	var el = enc.length, r = 0;
+	rows = rows||0; cols = cols||0;
+	if (type == 'm' && el > 176) type = 'f'; // too long for MicroPDF
+	if ((rows|cols) == 0) { rows = 99; cols = 33; } // auto_size
+	if (type != 'm') { // full PDF417
+		if (el > 924) return []; // message too long
+		if (!Number.isInteger(level)) 
+			level = el < 41 ? 2 : el < 161 ? 3 : el < 320 ? 4 : 5; // auto_level
+		level = level < 0 ? 0 : level > 8 ? 8 : level; // limit level
+		while (929-el < 2<<level) level--; // limit level to capacity
+		var ec = 2 << level;
+		if (rows > 90 && cols > 30) {
+			cols = Math.ceil(cols*Math.sqrt(el+ec+1)/rows); // aspect_ratio
+			rows = 0;
+		}
+		if (30*rows < el+ec+1) rows = Math.ceil((el+ec+1)/cols); // too less rows ?
+		rows = rows < 3 ? 3 : rows > 90 ? 90 : rows; // limit rows;
+		cols = Math.max(cols,Math.ceil((++el+ec)/rows)); // too less columns ?
+		enc.unshift(rows*cols-ec); // symbol length descriptor
+	} else { // MicroPDF417 parameter (ISO/IEC 24728:2006)
+		c = [1,1,1,1,1,1,2,2,2,2,2,2,2,3,3,3,3,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4,4];
+		r = [11,14,17,20,24,28,8,11,14,17,20,23,26,6,8,10,12,15,20,26,32,38,44,4,6,8,10,12,15,20,26,32,38,44];
+		b = [7,7,7,8,8,8,8,9,9,10,11,13,15,12,14,16,18,21,26,32,38,44,50,8,12,14,16,18,21,26,32,38,44,50];
+		for (i = 0; i < c.length-1; i++) { // compute size
+			if (c[i]*r[i] < el+b[i]) continue; // too small
+			if (cols == c[i] && (rows == r[i] || rows == 0)) break; // column fits
+			if (rows == r[i] && cols == 0) break; // row fits
+			if (cols*rows > 0 && c[i] >= cols && r[i] >= rows) break; // fit next size
+			if (rows+cols > 99 && r[i]*cols < c[i]*rows) break; // aspect_ratio
+		}
+		ec = b[i]; cols = c[i]; rows = r[i]; // get parameter
+		var rapl = [1,8,36,19,9,25,1,1,8,36,19,9,27,1,7,15,25,37,1,1,21,15,1,47,1,7,15,25,37,1,1,21,15,1][i];
+		var rapc = [31,25,19,1,7,15,25,37,17,9,29,31,25,1,7,15,25,37,17,9,29][i%21];
+		var rapr = [9,8,36,19,17,33,1,9,8,36,19,17,35,1,7,15,25,37,33,17,37,47,49,43,1,7,15,25,37,33,17,37,47,49][i];
+		var clst = [0,1,2,0,2,0,0,0,1,2,0,2,2,0,0,2,0,0,0,0,2,2,0,1,0,0,2,0,0,0,0,2,2,0][i];
+		var pats = [49,17,81,89,25,57,61,29,93,77,109,101,69,5,13,9,73,105,107,106,74,90,82,83,87,86,84,20,22,23,19,27,91,75,11,10,26,58,50,51,55,54,52,36,44,46,47,39,38,34,35,33];
+		var patc = [111,103,39,55,23,19,27,11,9,13,29,25,17,49,57,61,125,121,123,59,58,50,51,35,33,97,113,115,114,118,54,22,20,52,116,100,102,98,99,67,71,70,78,76,92,88,72,104,40,44,46,110];
+	}
+	k = rows*cols-enc.length-ec; // padding
+	while (k--) enc.push(900); // add padding
+
+	/** compute Reed Solomon error detection and correction */
+	var rs = Array(ec+1);
+	rs[0] = t = 1; el = enc.length;
+	for (i = 0; i < ec; i++) { // calculate generator polynomial
+		enc[el+i] = rs[i+1] = 0;
+		t = 3*t%929; // (3^i) MOD 929
+		for (j = i; j >= 0; j--)
+			rs[j+1] = rs[j]-t*rs[j+1]%929;
+		rs[0] = -rs[0]*t%929;
+	}
+	for (i = 0; i < el; i++) { // calculate RS codewords
+		t = enc[i]+enc[el];
+		for (j = 0; j++ < ec; )
+			enc[el+j-1] = enc[el+j]-t*rs[ec-j]%929;
+		enc[el+ec-1] = -t*rs[0]%929;
+	}
+	while (ec--) enc[el+ec] = (9290-enc[el+ec])%929; // complement RS
+
+	/** layout PDF417 barcode */
+	var bars = [[17,,,3,,,11,,4,4,,4,15,,,3,,,11,,4,22,,,3,,,3,,23,,4,,25,191,232,,,11,,,3,,3,,,3,,4,15,,,11,,,3,,,3,,21,,,3,,4,,23,,4,5,569,,,3,,,11,,,3,,4,5,14,,,3,,,3,,4,5,19,,4,,4,24,639,,,11,,,3,,,3,,4,,18,,,3,,4,,4,5,84,17,785,,,3,,,3,,4,,4,19,5,5,1005,10,4,5,17,40048,,,11,,,3,,,11,,4,84,,,11,,,3,,4,5,19,,,3,,4,5,22,,4,185,-39757,,,3,,,11,,,3,,,3,,31,,,58,9,,,58,,,11,9,,,58,,4,32,,,58,9,,,58,,,3,9,8,35,,7,9,,7,,4,38,8,9,8,388,,,11,,,3,,,3,,4,5,30,,,58,9,,58,9,56,9,58,9,,7,,9,4,14,,,58,9,,7,,9,7,9,5,19,,7,9,8,9,8,24,419,,,3,,,3,,4,,4,5,40001,,,58,9,,,58,,,3,9,,7,,4,32,,7,9,,7,,4,9,8,22,5,604,,,3,,4,,4,5,31,,,58,9,,7,,9,7,9,8,9,19,8,5,5,793,5,17,35,4,8,5,5,80039,,,3,,3,,,3,,4,5,14,,,3,,,3,,4,5,19,,4,,4,24,5,60,,,11,,,3,,,3,,4,,31,,,58,9,,58,9,56,9,58,,9,7,9,8,32,,,58,9,56,3,,9,7,9,8,35,,7,9,8,9,24,8,-39757,,,3,,,3,,4,,4,31,,,58,9,56,9,58,,,3,9,,7,,40026,40001,,,58,9,,,-79963,9,,,58,,,42,54,9,,7,79990,14,,7,9,,54,9,,7,,42,8,35,8,9,6,9,60,,,3,,4,,4,5,31,,,58,9,56,3,,9,7,9,8,9,8,79996,,,58,9,,54,9,,9,54,,42,6,9,9,8,32,,7,9,6,9,9,6,9,38,-79920,423,,4,,4,5,34,,7,9,,7,,4,9,8,44,,7,9,,54,9,,7,,42,6,9,8,35,8,5,612,17,38,4,5,37,8,8,79990,8,80074,4,,4,,,3,,4,,18,,,3,,4,,4,5,19,,4,5,24,-39541,,,3,,4,,4,,4,31,,,58,9,56,9,58,,,3,9,,7,,40026,14,,7,9,,7,,4,9,22,8,9,8,60,,,3,,4,,4,5,31,,7,9,,7,,9,7,9,8,9,8,79996,,7,9,56,58,9,,9,54,,42,6,9,9,8,32,,7,9,6,9,9,6,9,38,8,8,-39753,,4,,4,5,34,,7,,9,7,,4,9,8,44,,7,9,,54,9,,7,,42,6,9,8,119991,,7,9,,54,9,,54,9,,42,53,,42,6,51,8,9,6,9,6,9,8,392,,4,5,37,,7,,4,9,8,46,,7,9,6,9,9,6,9,8,50,,7,,7,9,9,53,9,9,6,9,8,47,-79920,462,25,5,40,8,5,48,8,8,5,160025,5,,4,5,5,19,5,5,5,22,5,61,5,,4,,4,5,31,,7,,9,7,,4,,4,9,8,32,,7,,4,9,8,38,8,-39537,5,5,5,34,8,,9,7,,4,9,8,44,8,9,,54,9,9,6,9,9,6,9,35,8,9,6,9,8,-39568,5,5,37,8,,4,9,8,46,,7,,7,9,9,6,9,8,50,,7,,7,9,9,53,9,9,6,9,47,8,8,8,-39749,5,40,8,9,8,48,8,9,6,9,8,120061,8,9,6,9,6,0],
+				[10,,3,,,3,,,3,,4,,4,14,,,11,,,3,,,3,,4,,4,14,,,11,,,3,,,3,,4,,4,14,,,11,,,3,,,3,,4,,18,,,3,,4,,4,22,,4,5,137,,,3,,,3,,4,,4,5,13,,,3,,,3,,4,,4,5,13,,,3,,,3,,4,,4,5,13,,,3,,,3,,4,,4,19,,4,,4,5,22,5,172,,,3,,4,,4,5,18,,,3,,4,,4,5,18,,,3,,4,,4,5,18,,,3,,4,,4,5,19,,4,5,24,207,,4,,4,5,21,,4,,4,5,21,,4,,4,5,21,,4,,4,5,22,5,392,,4,5,23,,4,5,23,,4,5,23,,4,5,577,5,25,5,25,5,39713,,,3,,,3,,4,,4,5,13,,,3,,,3,,4,,4,5,13,,,3,,,3,,4,,4,5,13,,,3,,,3,,4,,4,19,,4,,4,5,22,5,-40004,,2,1,,2,1,,2,1,5,31,,,58,9,56,3,,9,7,9,8,9,8,31,,,58,9,,7,,9,7,9,8,9,8,31,,,58,9,,7,,9,7,9,8,9,8,31,,,58,9,,7,,9,7,9,8,9,19,,7,9,8,9,8,38,-39969,,2,1,,2,1,12,1,34,,7,9,,7,,4,9,8,34,,7,9,,7,,4,9,8,34,,7,9,,7,,4,9,8,34,,7,9,,7,,4,9,8,35,8,9,8,176,,2,1,12,1,37,,7,,4,9,8,37,,7,9,8,9,8,37,,7,,4,9,8,37,,7,9,8,9,8,38,8,211,12,1,40,8,9,8,40,8,9,8,40,8,9,8,40,8,9,8,396,41,8,41,8,41,8,79708,,,3,,4,,4,5,18,,,3,,4,,4,5,18,,,3,,4,,4,5,18,,,3,,4,,4,5,19,,4,5,24,-39969,,2,1,,2,1,12,1,34,,7,9,,7,,4,9,8,34,,7,9,,7,,4,9,8,34,,7,9,,7,,4,9,8,34,,7,9,,7,,4,9,8,35,8,9,8,-40000,2,,1,2,,1,2,5,40046,,2,55,,2,9,55,9,59,1,46,,7,9,6,,42,6,9,8,46,,7,9,6,9,9,6,9,8,46,,7,9,6,9,9,6,9,8,46,,7,9,6,9,9,6,9,8,47,8,-39965,2,,1,2,5,36,12,55,9,59,1,48,8,9,6,9,8,48,8,9,6,9,8,48,8,9,6,9,8,48,8,9,6,9,8,180,2,5,39,8,49,8,8,49,8,8,49,8,8,49,8,8,240,120507,,4,,4,5,21,,4,,4,5,21,,4,,4,5,21,,4,,4,5,22,5,-39784,,2,1,12,1,37,,7,9,8,9,8,37,,7,9,8,9,8,37,,7,9,8,9,8,37,,7,9,8,9,8,38,8,-39965,2,,1,2,5,36,12,55,9,59,1,48,8,9,6,9,8,48,8,9,6,9,8,48,8,9,6,9,8,48,8,9,6,9,8,-39975,,4,,4,5,33,2,57,2,9,8,80076,8,8,52,8,8,8,52,8,8,8,52,8,8,8,52,8,8,-39940,,4,5,38,8,29,5,1260,159392,5,5,23,,4,5,23,,4,5,23,,4,5,24,-39749,12,1,40,8,9,8,40,8,9,8,40,8,9,8,40,8,9,8,-39780,2,5,39,8,49,8,8,49,8,8,49,8,8,49,8,8,-39940,,4,5,38,8,62,,4,,4,5,35,8,9,8,28,,4,5,38,8,29,5,1260,198493,5,25,5,25,5,-39348,41,8,41,8,41,8,-39720,-38885,5,63,,4,5,38,8,62,,4,,4,5,35,8,9,8,28,,4,5,38,8,29,5,121800,-38885,5,63,,4,5,38,8,29,5,0],
+				[28,,3,,,3,,,3,,4,16,2,,1,2,,1,2,,1,2,20,,2,1,,2,1,12,1,21,,4,,4,5,21,,4,,4,5,21,,4,,4,166,,,3,,,3,,4,,4,16,2,,1,2,,1,2,5,20,,2,1,12,1,23,,4,5,23,,4,5,23,,4,5,166,,,3,,4,,4,5,16,2,,1,2,5,121,12,1,25,5,25,5,25,5,201,,4,,4,5,90,2,5,156,26,26,452,,4,5,24,29,5,40145,,,3,,,3,,4,,4,16,2,,1,2,,1,2,5,20,,2,1,12,1,23,,4,5,23,,4,5,23,,4,5,-40010,,,11,,,3,,,3,,4,,4,30,,,58,9,,7,,9,7,9,8,9,8,40015,2,,55,9,-39970,9,57,2,9,8,36,12,55,9,59,1,40,8,9,8,40,8,9,8,40,5,-39979,,,3,,,3,,4,,4,5,30,,7,9,,7,,4,9,8,33,2,57,2,9,8,39,8,41,8,41,8,41,-39944,,,3,,4,,4,5,32,,7,9,8,9,8,38,8,27,,4,,4,5,35,8,9,8,28,,4,5,38,8,29,5,79030,,,3,,4,,4,5,16,2,,1,2,5,121,12,1,25,5,25,5,25,5,-39979,,,3,,,3,,4,,4,5,30,,7,9,,7,,4,9,8,33,2,57,2,9,8,39,8,41,8,41,8,41,-80120,,,11,,,3,,,3,,4,,4,30,,,58,9,,7,,9,7,9,8,9,8,43,,7,9,6,9,9,6,9,8,47,8,8,635,,,3,,,3,,4,,4,5,30,,7,9,,7,,4,9,8,45,8,9,6,9,8,820,,,3,,4,,4,5,32,,7,9,8,9,8,47,8,8,27,,4,,4,5,35,8,9,8,28,,4,5,38,8,29,5,117915,,4,,4,5,22,5,156,26,26,26,-39944,,,3,,4,,4,5,32,,7,9,8,9,8,38,8,-39325,,,3,,,3,,4,,4,5,30,,7,9,,7,9,8,9,8,45,8,9,6,9,8,61,,,11,,,3,,,3,,4,,4,30,,,58,9,,7,,9,7,9,8,9,8,43,,7,9,6,9,9,6,9,8,51,8,8,8,635,,,3,,,3,,4,,4,5,30,,7,9,,7,,4,9,8,45,8,9,6,9,8,820,,,3,,4,,4,5,32,,7,9,8,9,8,47,8,8,27,,4,,4,5,35,8,9,8,28,,4,5,38,8,157910,,4,5,24,62,,4,,4,5,35,8,9,8,-39140,,,3,,4,,4,5,32,,7,9,8,9,8,47,8,8,-39325,,,3,,,3,,4,,4,5,30,,7,9,,7,,4,9,8,45,8,9,6,9,8,61,,,3,,4,,4,5,31,,,58,9,,7,,9,7,9,8,9,8,43,,7,9,6,9,9,6,9,8,51,8,8,8,639,,4,,4,5,34,,7,9,,7,,4,9,8,45,8,9,6,9,8,824,,4,5,37,,7,9,8,9,8,47,8,8,859,5,40,8,9,8,198055,5,63,,4,5,38,8,62,,4,,4,5,35,8,9,8,-39140,,,3,,4,,4,5,32,,7,,4,9,8,47,8,8,-39321,,4,,4,5,34,,7,,9,7,9,8,9,8,45,8,9,6,9,8,-39352,,4,5,37,,7,9,8,9,8,46,,7,9,6,9,9,6,9,8,51,8,8,8,643,5,40,8,9,8,48,8,9,6,9,8,828,41,8,49,8,8,199165,5,63,,4,5,38,8,62,,4,,4,5,35,8,9,8,-39136,,4,5,37,,7,,4,9,8,47,8,8,-39317,5,40,8,9,8,48,8,9,6,9,8,828,41,8,49,8,8,161575,5,63,,4,5,38,8,-39101,5,40,8,9,8,-39132,0]
+		]; // indexed differences of bar/space cluster
+	ec = [4,6,25,27,31,35,-79955,-39964,-39960,39995,8,23,29,41,45,49,55,66,76,80,86,111,115,146,150,181,216,855,1040,1075,40005,40036,40040,40050,40071,40075,40081,40106,40110,40116,40141,40176,79986,80000,80031,80035,80066,80070,80101,80136,120026,120030,120096,-119950,-79959,-39989,-39987,-39985,-39968,-39966,-39572,-39356,-39105,-38920];
+	for (b of bars) // cluster 0/3/6
+		for (i = 0; i < b.length-1; i++) { // unpack bar/space sequence
+			t = [17]; b[i+1] = b[i] + (b[i+1]&-64 ? b[i+1] : ec[b[i+1]|0]);
+			for (j = 8; --j > 0; b[i] = b[i]/6|0) // get width of bar/space
+				t[0] -= t[j] = b[i]%6+1;
+			for (j = 0; j < 8; j++) // make pattern
+				while (t[j]-- > 0) b[i] += b[i]+(1&j^1);
+		}
+	var mat = Array(rows); // barcode matrix
+	function set(col,row,bar,bits) { // set code bars
+		for (var i = bits; i-- > 0; bar >>= 1)
+			mat[row][col+i] = bar&1; // 4 bars in 17 modules -> PDF417
+		return col+bits;
+	}
+	t = [((rows-1)/3)|0,level*3+(rows-1)%3,cols-1]; // row indicator cluster
+	for (i = 0; i < rows; i++) { // all rows
+		mat[i] = [];
+		if (type != 'm') { // full PDF417
+			k = set(0,i,65192,17); // start 11111111 0 1 0 1 0 1 000
+			k = set(k,i,bars[i%3][30*((i/3)|0)+t[i%3]],17); // left row indicator
+			for (j = 0; j < cols; j++) // layout message
+				k = set(k,i,bars[i%3][enc[i*cols+j]],17);
+			if (type != 'c') { // full PDF417 ?
+				k = set(k,i,bars[i%3][30*((i/3)|0)+t[(i+2)%3]],17); // right row indicator
+				k = set(k,i,64788,17); // stop 1111111 0 1 000 1 0 1 00 (1)
+			}
+		} else { // MicroPDF417
+			k = set(0,i,pats[(rapl+i)%52]*2+768,10); // left row address pattern
+			for (j = 0; j < cols; j++) {
+			   if (j > 0 && cols-j == 2) k = set(k,i,patc[(rapc+i)%52]*2+512,10); // center row address pattern
+			   k = set(k,i,bars[(clst+i)%3][enc[i*cols+j]],17); // data message
+			}
+			k = set(k,i,pats[(rapr+i)%52]*2+768,10); // right row address pattern
+		}
+		mat[i][k] = 1; // last bar
+	}
+	return mat;
+}
+
+/** Code 128 symbol creation according ISO/IEC 15417:2007
+* @param text to encode
+* @return array of code128 barcode
+*/
+function code128(text) {
+	var t = 3, enc = [], i, j, c, mat = [];
 	for (i = 0; i < text.length; i++) {
 		c = text.charCodeAt(i);
 		if (t != 2) { // alpha mode
@@ -662,12 +851,12 @@ function code128(setCell, text) {
 		104,97,26,25,265,296,477,266,61,158,94,79,242,122,121,466,458,457,367,
 		379,475,188,143,47,244,241,468,465,239,247,431,471,322,328,334,285];
 	for (t = i = 0; i < enc.length; i++, t++) { // code to pattern
-		setCell(t++,0);
+		mat[t++] = 1;
 		for (j = 256; j > 0; j >>= 1, t++)
-			if (c[enc[i]]&j) setCell(t,0);
+			if (c[enc[i]]&j) mat[t] = 1;
 	}
-	setCell(t++,0);	setCell(t,0);
-	return t;
+	mat[t++] = mat[t] = 1;
+	return mat;
 }
 
 /** convert a black&white image matrix to minimized SVG path: [[1,0,1],
@@ -770,6 +959,37 @@ function toGif(mat, scale, trans, pad, rgb, max) {
 	enc = enc.substr(0,enc.length-ec-1)+String.fromCharCode(ec)+enc.substr(enc.length-ec); // length final raster data block
 	return 'data:image/gif;base64,'+btoa(enc+"\0;"); // <img src=".." /> DOM gif image
 }
+
+/** convert a black&white image matrix to html/css
+* @param mat 0/1 image matrix array
+* @param size optional (3): output cell in pixel, or as [x-size,y-size]
+* @param blocks optional (6): # of bar/space style classes
+* @return html/css of 2D barcode: <div>...</div>
+*/
+function toHtml(mat, size, blocks) {
+	if (!Array.isArray(size)) size = [size||3,size||3];
+	var s = "barcode"+size[0]+size[1]; // style class
+	var html = "<style> ."+s+" div { float:left; margin:0; height:"+size[1]+"px} ."+s+" table, ."+s
+		+" td {display:inline-table; vertical-align:middle; font-size:0px; border-collapse:collapse; padding:0px; margin:0px}";
+	blocks = blocks||6;
+	for (var i = 0; i < blocks; i++) // define bar/space styles
+		for (var j = 0; j < blocks; j++)
+			html += "."+s+" .bar"+i+j+" {border-left:"+i*size[0]+"px solid; margin-right:"+j*size[0]+"px}\n";
+	html += "</style><div class="+s+"><table><tr><td>";
+
+	for (i = 0; i < mat.length; i++) { // convert matrix
+		if (i > 0) html += "<br>";
+		for (j = 0; j < mat[i].length; ) {
+			for (var b = 0; j < mat[i].length; b++, j++) // bars
+				if (!mat[i][j] || b+1 == blocks) break;
+			for (var s = 0; j < mat[i].length; s++, j++) // spaces
+				if (mat[i][j] || s+1 == blocks) break;
+			html += "<div class=bar"+b+s+"></div>";
+		}
+	}
+	return html+"</td></tr></table></div>";
+}
+
 /** fill array matrix by call back function setCell
 * @param barcode_function(), parameter,..
 * @return image matrix array filled by callback function

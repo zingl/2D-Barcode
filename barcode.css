@@ -6,7 +6,7 @@ body {
   background-color: #C0FFE0;
 }
 
-a { text-decoration:none; }
+a { text-decoration-color: DarkSeaGreen;}
 a:link { color: darkcyan;  }
 a:visited { color: #004080; }
 a:active { color: black; }
@@ -213,4 +213,8 @@ SPAN.VERS {
 input {
   text-align:right;
 }
- 
+pre, code {
+	font-size: 0.9em;
+	padding-left:2em;
+    font-family: Consolas, Menlo, Monaco, Lucida Console, Liberation Mono, DejaVu Sans Mono, Bitstream Vera Sans Mono, Courier New, monospace, serif;
+}

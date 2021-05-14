@@ -1,0 +1,52 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta charset="utf-8" />
+  <title>Barcode</title>
+  
+  <script type="text/javascript" src="barcode.js"></script>
+  <script type="text/javascript">
+	window.onload = function() { 
+		var text = unescape(encodeURIComponent(form.text.value)); // unicode chars to utf-8
+		
+		var path = toPath(toMatrix(datamatrix, text, true)); // get svg path of Data Matrix
+		svg.replaceChild(path,svg.firstElementChild); // replace drawing
+		svg.parentNode.setAttribute("style","height:"+svg.getBBox().height*6+"px"); // adjust size
+		
+		qr.src = toGif(quickresponse(text),6); // matrix as gif
+		
+		azt.src = toGif(toMatrix(aztec,text),6); // setCell of aztec to matrix as gif
+
+		pdf.innerHTML = toHtml(pdf417(text,null,0,0,'m'),[4,10]); // matrix to HTML/CSS
+		
+		c128.innerHTML = toHtml([code128(text)],[3,60]); // make 2D matrix of array for toHtml
+	}
+  </script>  
+</head>
+<body>
+	<h1>Easy Barcode Generation</h1>
+	
+		<h3>Message to encode</h3>
+		<form name="form">
+		  <p><textarea name="text" cols="60" rows="6" title="type barcode text here" onkeyup="window.onload()">TYPE TEXT HERE</textarea></p>
+		</form>
+	
+	<h2>Data Matrix</h2>
+	<svg><g id=svg transform="scale(6)"><path></path></g></svg>
+	
+	<h2>QR Code</h2>
+		<img id="qr" />
+	
+	<h2>Aztec</h2>
+		<img id="azt" />
+	
+	<h2>PDF417</h2>
+		<p id="pdf"></p>
+
+	<h2>Code128</h2>
+		<p id="c128"></p>
+
+	<p>A page of <a href="https://zingl.github.io/">zingl.github.io</a></p>
+</body>
+</html>
