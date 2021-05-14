@@ -10,16 +10,21 @@
 	window.onload = function() { 
 		var text = unescape(encodeURIComponent(form.text.value)); // unicode chars to utf-8
 		
+		// DataMatrix in SVG
 		var path = toPath(toMatrix(datamatrix, text, true)); // get svg path of Data Matrix
 		svg.replaceChild(path,svg.firstElementChild); // replace drawing
 		svg.parentNode.setAttribute("style","height:"+svg.getBBox().height*6+"px"); // adjust size
 		
+		// QRCode in GIF
 		qr.src = toGif(quickresponse(text),6); // matrix as gif
 		
+		// Aztec in GIF
 		azt.src = toGif(toMatrix(aztec,text),6); // setCell of aztec to matrix as gif
 
+		// PDF417 in HTML/CSS
 		pdf.innerHTML = toHtml(pdf417(text),[4,10]); // matrix to HTML/CSS
 		
+		// Code128 in HTML/CSS
 		c128.innerHTML = toHtml([code128(text)],[3,60]); // make 2D matrix of array for toHtml
 	}
   </script>  
@@ -27,11 +32,13 @@
 <body>
 	<h1>Easy Barcode Generation</h1>
 	
-		<h3>Message to encode</h3>
-		<form name="form">
-		  <p><textarea name="text" cols="60" rows="6" title="type barcode text here" onkeyup="window.onload()">TYPE TEXT HERE</textarea></p>
-		</form>
-	
+	<p>Check this page source to see how simple barcode generation is!</p>
+
+	<h3>Message to encode</h3>
+	<form name="form">
+	  <p><textarea name="text" cols="60" rows="6" title="type barcode text here" onkeyup="window.onload()">TYPE TEXT HERE</textarea></p>
+	</form>
+
 	<h2>Data Matrix</h2>
 	<svg><g id=svg transform="scale(6)"><path></path></g></svg>
 	
