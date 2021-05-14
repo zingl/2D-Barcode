@@ -18,7 +18,7 @@
 		
 		azt.src = toGif(toMatrix(aztec,text),6); // setCell of aztec to matrix as gif
 
-		pdf.innerHTML = toHtml(pdf417(text,null,0,0,'m'),[4,10]); // matrix to HTML/CSS
+		pdf.innerHTML = toHtml(pdf417(text),[4,10]); // matrix to HTML/CSS
 		
 		c128.innerHTML = toHtml([code128(text)],[3,60]); // make 2D matrix of array for toHtml
 	}
