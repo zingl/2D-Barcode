@@ -5,7 +5,8 @@ Demonstration example page at [GitHub](https://zingl.github.io/)
 * Creates Data Matrix in square or rectangular pattern.
 * Creates QR or micro QR barcode symbols.
 * Creates Aztec, compact Aztec or Aztec rune barcodes.
-* Scalable Vector Graphic or PNG/GIF pixel image output.
+* Creates PDF417, compact PDF417 or micro PDF417 barcodes.
+* HTML, Scalable Vector Graphic or PNG/GIF pixel image output.
 * One short and compact program for all barcodes.
 * Available for office programs Excel, Access and Calc.
 * Automatic mode encoding and barcode size selection.
