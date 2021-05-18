@@ -1,35 +1,33 @@
 /** 2D barcode symbol creation by javascript
 * @author alois zingl
 * @version V2.1 May 2021
-* @copyright MIT open-source license software
-* @url https://zingl.github.io/
+* @license MIT copyright: open-source software
+* @link https://zingl.github.io/
 * @description the indention of this library is a short and easy implementation to create the 2D barcodes 
-*  of Data Matrix, QR, Aztec or PDF417 symbols so it could be easily adapted for individual requirements.
-*  Data Matrix and Aztec barcodes immediately set the cells by a callback function, other return an array matrix.
-*  All could be converted to an array matrix, SVG path, html/css or GIF image.
-*  The smallest bar code symbol fitting the data is automatically selected.
+*	of Data Matrix, QR, Aztec or PDF417 symbols so it could be easily adapted for individual requirements.
+*	All return the smallest possible barcode fitting the date as array matrix 
+*	which could be converted to SVG path, html/css, canvas or GIF image.
 * functions: 
-*	datamatrix(setCell,text,rect)		create Data Matrix barcode
+*	datamatrix(text,rect)				create Data Matrix barcode
 *	quickresponse(text,level,ver)		create QR and micro QR barcode
-*	aztec(setCell,text,sec,lay)			create Aztec, compact Aztec and Aztec runes
+*	aztec(text,sec,lay)					create Aztec, compact Aztec and Aztec runes
 *	pdf417(text,level,cols,rows,type) 	create PDF417 barcode
 *	code128(text)						create Code 128 barcode
 *	toPath(mat)							convert array matrix to SVG path
 *	toGif(mat,scale,trans,pad,rgb)  	convert array matrix to GIF image
 *	toHtml(mat,size,blocks)				convert array matrix to html/css
-*	toMatrix(function,parameters..) 	fill array matrix by call back function setCell
-*  there is no dependency between functions, just copy the ones you need
-*  'Small is beautiful' - Leopold Kohr. 1000 lines for five barcodes in four formats.
+*	toCanvas(mat,canvas,scale)			convert array matrix to canvas
+* there is no dependency between functions, just copy the ones you need
+*	'Small is beautiful' - Leopold Kohr.
 */
 "use strict";
 
 /** Data Matrix symbol creation according ISO/IEC 16022:2006
-* @param setCell call back drawing function(x,y)
 * @param text to encode
 * @param rect optional: flag - true for rectangular barcode
-* @return array [width,height] of symbol ([0,0] if text too long)
+* @returns matrix array of DataMatrix symbol ([] if text is too long)
 */
-function datamatrix(setCell, text, rect) {
+function datamatrix(text, rect) {
 	var enc = [], cw = 0, ce = 0; // byte stream
 	function push(val) { // encode bit stream c40/text/x12
 		cw = 40*cw+val;
@@ -131,7 +129,7 @@ function datamatrix(setCell, text, rect) {
 		k = [5,7,10,12,14,18,20,24,28,36,42,48,56,68,84,
 				112,144,192,224,272,336,408,496,620]; // RS checkwords
 		do {
-			if (++j == k.length) return [0,0]; // message too long for Datamatrix
+			if (++j == k.length) return []; // message too long for Datamatrix
 			if (w > 11*i) i = 4+i&12; // advance increment
 			w = h += i;
 			l = (w*h)>>3;
@@ -167,16 +165,17 @@ function datamatrix(setCell, text, rect) {
 		for (i = 0; i < s; i++) // add interleaved correction data
 			enc[el+c+i*b] = rc[i];
 	}
-	// layout perimeter finder pattern, 0/0 = upper left corner
+	// layout perimeter finder pattern
+	var mat = Array(h+2*nr).fill(null).map(()=>Array(w+2*nc).fill(0));
+	for (i = 0; i < w+2*nc; i += fw+2) // vertical
+		for (j = 0; j < h; j++) {
+ 			mat[j+(j/fh|0)*2+1][i] = 1;
+			if ((j&1) == 1) mat[j+(j/fh|0)*2][i+fw+1] = 1;
+		}
 	for (i = 0; i < h+2*nr; i += fh+2) // horizontal
 		for (j = 0; j < w+2*nc; j++) {
-			setCell(j, i+fh+1);
-			if ((j&1) == 0) setCell(j, i);
-		}
-	for (i = 0; i < w+2*nc; i += fw+2)  // vertical
-		for (j = 0; j < h; j++) {
- 			setCell(i, j+(j/fh|0)*2+1);
-			if ((j&1) == 1) setCell(i+fw+1, j+(j/fh|0)*2);
+			mat[i+fh+1][j] = 1;
+			if ((j&1) == 0) mat[i][j] = 1;
 		}
 	// layout data
 	s = 2; c = 0; r = 4; // step,column,row of data position
@@ -203,12 +202,12 @@ function datamatrix(setCell, text, rect) {
 				var x = c+k[j], y = r+k[j+1];
 				if (x < 0) { x += w; y += 4-((w+4)&7); } // wrap around
 				if (y < 0) { y += h; x += 4-((h+4)&7); }
-				setCell(x+2*(x/fw|0)+1,y+2*(y/fh|0)+1); // add region gap
+				mat[y+2*(y/fh|0)+1][x+2*(x/fw|0)+1] = 1; // add region gap
 			}
 		}
 	}
-	for (i = w; i&3; i--) setCell(i,i); // unfilled corner
-	return [w+2*nc,h+2*nr]; // width and height of symbol
+	for (i = w; i&3; i--) mat[i][i] = 1; // unfilled corner
+	return mat; // width and height of symbol
 }
 
 /**	QR Code 2005 bar code symbol creation according ISO/IEC 18004:2006
@@ -216,7 +215,7 @@ function datamatrix(setCell, text, rect) {
 * @param text to encode
 * @param level optional: quality level LMQH
 * @param ver optional: minimum version size (-3:M1, -2:M2, .. 1, .. 40), set to -3 for micro QR
-* @return matrix array of QR symbol ([] if text is too long)
+* @returns matrix array of QR symbol ([] if text is too long)
 *   needs kanji.js for unicode kanji encoding string
 */
 function quickresponse(text, level, ver) { // create QR and micro QR bar code symbol
@@ -451,13 +450,12 @@ function quickresponse(text, level, ver) { // create QR and micro QR bar code sy
 
 /**	Aztec bar code symbol creation according ISO/IEC 24778:2008
 *	creates Actec and compact Aztec bar code symbol by call back function.
-* @param setCell call back drawing function(x,y)
 * @param text to encode
 * @param sec optional: percentage of checkwords used for security 2%-90% (23%)
 * @param lay optional: minimum number of layers (size), default autodetect
-* @return array size (0 if text too long for Aztec)
+* @returns matrix array of barcode ([] if text too long for Aztec)
 */
-function aztec(setCell, text, sec, lay) { // make Aztec bar code
+function aztec(text, sec, lay) { // make Aztec bar code
 	var e = 20000, BackTo, numBytes, CharSiz = [5,5,5,5,4];
 	var LatLen = [[ 0,5,5,10,5,10], [9,0,5,10,5,10], [5,5,0,5,10,10],
 	             [5,10,10,0,10,15], [4,9,9,14,0,14], [0,0,0,0,0,0]];
@@ -539,7 +537,7 @@ function aztec(setCell, text, sec, lay) { // make Aztec bar code
 		enc.pop(); // remove 0-byte
 		el = enc.shift()/b|0; // get encoding length
 	}
-	if (el > 1660) return 0; // message too long
+	if (el > 1660) return []; // message too long
 	typ = j > 608 || el > 64 || (lay && lay > 4) ? 14 : 11; // full or compact Aztec finder size
 	var mod = parseInt(text); // Aztec rune possible?
 	if (mod >= 0 && mod < 256 && mod+"" == text && !lay) lay = 0; // Aztec rune 0-255
@@ -563,13 +561,14 @@ function aztec(setCell, text, sec, lay) { // make Aztec bar code
 				enc[el+j-1] = enc[el+j]^(p ? ex[(lg[rc[j]]+lg[p])%s] : 0);
 	}
 	/** layout Aztec barcode */
+	var mat = Array(2*ctr+1).fill(null).map(()=>Array(2*ctr+1).fill(0));
 	for (y = 1-typ; y < typ; y++) // layout central finder
 		for (x = 1-typ; x < typ; x++)
 			if ((Math.max(Math.abs(x),Math.abs(y))&1) == 0)
-				setCell(ctr+x,ctr+y);
-	setCell(ctr-typ,ctr-typ+1); setCell(ctr-typ,ctr-typ); // orientation marks
-	setCell(ctr-typ+1,ctr-typ); setCell(ctr+typ,ctr+typ-1);
-	setCell(ctr+typ,ctr-typ+1); setCell(ctr+typ,ctr-typ); 
+				mat[ctr+y][ctr+x] = 1;
+	mat[ctr-typ+1][ctr-typ] = mat[ctr-typ][ctr-typ] = 1; // orientation marks
+	mat[ctr-typ][ctr-typ+1] = mat[ctr+typ-1][ctr+typ] = 1;
+	mat[ctr-typ+1][ctr+typ] = mat[ctr-typ][ctr+typ] = 1; 
 	function move(dx,dy) { // move one cell
 		do x += dx; while (typ == 7 && (x&15) == 0); // skip reference grid
 		do y += dy; while (typ == 7 && (y&15) == 0);
@@ -581,9 +580,9 @@ function aztec(setCell, text, sec, lay) { // make Aztec bar code
 		var dx = 1, dy = 0; // direction right
 		while ((c = enc.pop()) !== undefined) // data in reversed order inside to outside
 			for (i = b/2; i-- > 0; c >>= 2) {
-				if (c&1) setCell(ctr+x,ctr+y); // odd bit
+				if (c&1) mat[ctr+y][ctr+x] = 1; // odd bit
 				move(dy,-dx); // move across
-				if (c&2) setCell(ctr+x,ctr+y); // even bit
+				if (c&2) mat[ctr+y][ctr+x] = 1; // even bit
 				move(dx-dy,dx+dy); // move ahead
 				if (j-- == 0) { // spiral turn
 					move(dy,-dx); // move across
@@ -597,10 +596,7 @@ function aztec(setCell, text, sec, lay) { // make Aztec bar code
 		if (typ == 7) // layout reference grid
 			for (x = (15-ctr)&-16; x <= ctr; x += 16)
 				for (y = (1-ctr)&-2; y <= ctr; y += 2) 
-					if (Math.abs(x) > typ || Math.abs(y) > typ) {
-						setCell(ctr+x,ctr+y); // down
-						if (y&15) setCell(ctr+y,ctr+x); // across
-					}
+					mat[ctr+y][ctr+x] = mat[ctr+x][ctr+y] = 1;
 		mod = (lay-1)*(typ*992-4896)+el-1; // 2/5 + 6/11 mode bits
 	}
 	/** process modes message compact/full */
@@ -611,12 +607,12 @@ function aztec(setCell, text, sec, lay) { // make Aztec bar code
 	for (i = 1; i <= b; i++) stream(enc,j^enc[i],4); // 8/16 words to 4 sides
 	for (i = 2-typ, j = 1; i < typ-1; i++, j += j) { // layout mode data
 		if (typ == 7 && i == 0) i++; // skip reference grid
-		if (enc[b+1]&j) setCell(ctr-i,ctr-typ); // top
-		if (enc[b+2]&j) setCell(ctr+typ,ctr-i); // right
-		if (enc[b+3]&j) setCell(ctr+i,ctr+typ); // bottom
-		if (enc[b+4]&j) setCell(ctr-typ,ctr+i); // left
+		if (enc[b+1]&j) mat[ctr-typ][ctr-i] = 1; // top
+		if (enc[b+2]&j) mat[ctr-i][ctr+typ] = 1; // right
+		if (enc[b+3]&j) mat[ctr+typ][ctr+i] = 1; // bottom
+		if (enc[b+4]&j) mat[ctr+i][ctr-typ] = 1; // left
 	}
-	return 2*ctr+1; // matrix size Aztec barcode
+	return mat; // matrix Aztec barcode
 }
 
 /**	PDF417 bar code symbol creation according ISO/IEC 15438:2006
@@ -627,7 +623,7 @@ function aztec(setCell, text, sec, lay) { // make Aztec bar code
 * @param rows optional: # of rows: 3-90 (0 for auto)
 *	for cols / rows > 90 they define an aspect_ratio
 * @param type optional: barcode type (f:full, c:compact, m:micro)
-* @return matrix array of PDF417 symbol ([] if text is too long)
+* @returns matrix array of PDF417 symbol ([] if text is too long)
 */
 function pdf417(text, level, cols, rows, type) { // make PDF417
 	var txt = [ "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", // alpha compactation chars
@@ -804,12 +800,12 @@ function pdf417(text, level, cols, rows, type) { // make PDF417
 		}
 		mat[i][k] = 1; // last bar
 	}
-	return mat;
+	return mat; // matrix PDF417 barcode
 }
 
 /** Code 128 symbol creation according ISO/IEC 15417:2007
 * @param text to encode
-* @return array of code128 barcode
+* @returns array of code128 barcode
 */
 function code128(text) {
 	var t = 3, enc = [], i, j, c, mat = [];
@@ -862,7 +858,7 @@ function code128(text) {
 /** convert a black&white image matrix to minimized SVG path: [[1,0,1],
 *   (needs fill-role:evenodd which only works with path)       [0,1,0]] -> 'M0 0H1V2H2V0H3V1H0Z'
 * @param mat 0/1 image matrix array, will be destroyed
-* @return DOM <path d='M0 0H1V2H2V0H3V1H0Z' style='fill-rule: evenodd' />
+* @returns DOM <path d='M0 0H1V2H2V0H3V1H0Z' style='fill-rule: evenodd' />
 */
 function toPath(mat) { // matrix of 0/1 pixel image
 	var  p = "", x, y = mat.unshift([]); // add padding zeros around image
@@ -902,7 +898,7 @@ function toPath(mat) { // matrix of 0/1 pixel image
 * @param pad optional: padding arround image in cells (1+5%)
 * @param rgb optional: table of rgb color map (black&white)
 * @param max optional: maximum dictionary bits (2-12 - but large dictionaries are slow in js)
-* @return string "data:image/gif;base64,imagedata"
+* @returns string "data:image/gif;base64,imagedata"
 */
 function toGif(mat, scale, trans, pad, rgb, max) { 
 	var eb = 0, ec = 0, ev = 0, i, c, dic = [], xl = 0; // encoding, pixel dictionary
@@ -964,7 +960,7 @@ function toGif(mat, scale, trans, pad, rgb, max) {
 * @param mat 0/1 image matrix array
 * @param size optional (3): output cell in pixel, or as [x-size,y-size]
 * @param blocks optional (6): # of bar/space style classes
-* @return html/css of 2D barcode: <div>...</div>
+* @returns html/css of 2D barcode: <div>...</div>
 */
 function toHtml(mat, size, blocks) {
 	if (!Array.isArray(size)) size = [size||3,size||3];
@@ -990,13 +986,17 @@ function toHtml(mat, size, blocks) {
 	return html+"</td></tr></table></div>";
 }
 
-/** fill array matrix by call back function setCell
-* @param barcode_function(), parameter,..
-* @return image matrix array filled by callback function
+/** convert a black&white image matrix to canvas
+* @param mat 0/1 image matrix array
+* @param canvas id of html
+* @param scale optional (3): output cell in pixel, or as [x-scale,y-scale]
 */
-function toMatrix() { // callback function(x,y) to array matrix
-	var mat = [], func = arguments[0];
-	arguments[0] = function(x,y) { mat[y] = mat[y] || []; mat[y][x] = 1; }; // setCell of array
-	func.apply(func,arguments);
-	return mat;
+function toCanvas(mat, canvas, scale) {
+	var ctx = canvas.getContext('2d'), x = 0;
+	if (!Array.isArray(scale)) scale = [scale||3,scale||3]; // default 4x
+	for (var y = mat.length; y--; x = Math.max(x,mat[y].length)); // get max width of matrix
+	canvas.width = x*scale[0]; canvas.height = mat.length*scale[1];
+	for (y = 0; y < mat.length; y++)
+		for (x = 0; x < mat[y].length; x++)
+			if (mat[y][x]) ctx.fillRect(x*scale[0],y*scale[1],scale[0],scale[1]);
 }

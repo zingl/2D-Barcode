@@ -75,7 +75,7 @@
 	  }
 	  function draw() { // create rectangle Data Matrix as SVG path and squared as SVG squares
 		var text = getText();
-		var dm = toMatrix(datamatrix, text, true); // // call bar code function, return as matrix, try rectangular symbol
+		var dm = datamatrix(text, true); // // call bar code function, return as matrix, try rectangular symbol
 		if (svg2.childElementCount > 0) svg2.removeChild(svg2.lastElementChild); // delete old drawing
 		if (dm.length == 0) { s = 2; tdm.innerHTML="Message too long for Data Matrix."; }
 		else {
@@ -93,22 +93,25 @@
 			svg.replaceChild(g,svg.firstElementChild);
 			if (dm[1].length > 4+dm.length) { // different width/height: draw both square and rectangular 
 				g = document.createElementNS('http://www.w3.org/2000/svg','g');
-				dm = datamatrix(function (x,y) { // setCell as SVG rectangle
-					var r = document.createElementNS('http://www.w3.org/2000/svg','rect');
-					r.x.baseVal.value = x; r.y.baseVal.value = y;
-					r.rx.baseVal.value = r.ry.baseVal.value = 0.1;
-					r.width.baseVal.value = r.height.baseVal.value = 0.9;
-					g.appendChild(r);
-				}, text); // (optional) false = square symbol
-				dmg2.src = toGif(toMatrix(datamatrix, text),s,3);
+				dm = datamatrix(text); // (optional) false = square symbol
+				for (var y = 0; y < dm.length; y++)
+					for (var x = 0; x < dm[y].length; x++)
+						if (dm[y][x]) { // setCell as SVG rectangle
+							var r = document.createElementNS('http://www.w3.org/2000/svg','rect');
+							r.x.baseVal.value = x; r.y.baseVal.value = y;
+							r.rx.baseVal.value = r.ry.baseVal.value = 0.1;
+							r.width.baseVal.value = r.height.baseVal.value = 0.9;
+							g.appendChild(r);
+						}
+				dmg2.src = toGif(datamatrix(text),s,3);
 				dmg2.style.width = form.bg.checked ? 'auto' : 0;
 				dmg2.title = "Content: "+text;
 				g.setAttribute('transform', 'scale(' + s + ')'); // same cell size as rect
-				svg2.parentNode.setAttribute('width', form.bg.checked ? 0 : dm[0]*s+5);
+				svg2.parentNode.setAttribute('width', form.bg.checked ? 0 : dm[1].length*s+5);
 				svg2.parentNode.setAttribute('visibility', !form.bg.checked ? 'visible' : 'hidden');
-				svg2.parentNode.setAttribute('height', dm[1]*s+5);
+				svg2.parentNode.setAttribute('height', dm.length*s+5);
 				svg2.parentNode.setAttribute('title', "Content: "+text);
-				tdm2.innerHTML = 'Data Matrix '+dm[0]+'x'+dm[1]+' cells '+(form.bg.checked ? '(GIF)' : '(SVG squares)');
+				tdm2.innerHTML = 'Data Matrix '+dm[1].length+'x'+dm.length+' cells '+(form.bg.checked ? '(GIF)' : '(SVG squares)');
 				svg2.appendChild(g);
 			} else {
 				tdm2.innerHTML = "";
@@ -126,7 +129,7 @@
 		var ratio = parseInt(document.pdf.ratio.value);
 		if (document.pdf.micro.checked) t = "m";
 		else if (document.pdf.compact.checked) t = "c";
-		var pdf = pdf417(text);//,level,(ratio/32|0)+1,0,t); // call bar code function, return as matrix
+		var pdf = pdf417(text,level,(ratio/32|0)+1,0,t); // call bar code function, return as matrix
 		if (pdf.length > 0) 
 			PDF417.src = toGif(pdf,[s/3|0,s],form.bg.checked ? 3 : 0,form.bg.checked ? 2 : 0); // draw PDF417
 	  }
@@ -138,13 +141,17 @@
 		gif.src = toGif(r,s,form.bg.checked ? 3 : 0,form.bg.checked ? undefined : 0); // BG transparent/white
 		gif.title = "Content: "+getText();
 	  }
-	  function draw_aztec() { // create Aztec barcode as canvas (PNG)
+	  function draw_aztec() { // create Aztec barcode as canvas
 		var cvs = document.createElement('canvas'), ctx = cvs.getContext('2d');
 		cvs.width = cvs.height = 900; ctx.fillStyle = 'white';
 		if (form.bg.checked) ctx.fillRect(0,0,700,700); // white BG
 		var b = form.bg.checked ? 20 : 0; // padding
-		var i = aztec(function(x,y) { ctx.rect(x*s+b,y*s+b,s,s); }, getText(),isNaN(fazt.sec.value)?23:fazt.sec.value); // setCell of array
-		if (i == 0) { alert("Message too long for Aztec!"); return; }
+		var dm = aztec(getText(),isNaN(fazt.sec.value)?23:fazt.sec.value); // setCell of array
+		var i = dm.length;
+		for (var y = 0; y < i; y++)
+			for (var x = 0; x < dm[y].length; x++)
+				if (dm[y][x]) ctx.rect(x*s+b,y*s+b,s,s); // setCell as SVG rectangle
+		if (dm.length == 0) { alert("Message too long for Aztec!"); return; }
 		tazt.innerHTML = 'Aztec '+(i < 12 ? 'rune ' : i < 28 ? 'compact ' : '')+i+'x'+i+' cells (PNG)';
 		ctx.fillStyle = "#000"; ctx.fill(); 
 		var tcvs = document.createElement('canvas'); // copy canvas
@@ -189,7 +196,7 @@
 		  <p><div id="remark" style="text-align: center">
 			The barcode generator is 100% client-side <a href="barcode.js" title="source code">JavaScript</a> without any dependencies.
 		  </div></p>
-		  <p style="text-align: center;">You can also view a very simple page of <a href="easy.html">Easy Barcode Generation</a>.</p>
+		  <p style="text-align: center;">You can also view a very simple page of <a href="easybar.html">Easy Barcode Generation</a>.</p>
 		  <p><div id="remark" style="text-align: center">
 			 <label><input type="checkbox" name="bg" title="toggle view" onclick="draw()" /> simple layout for copying barcode images.</label>
 		  </div></p>
@@ -290,7 +297,8 @@
 	</tr>
   </table>
 
-  <p>The program creates 2D barcode symbols of Data Matrix, Aztec and QR code in 
+  <h3 style="text-align:left;text-indent:40px;">Barcode Library</h3>
+  <p>The program creates 2D barcode symbols of Data Matrix, Aztec, PDF417 and QR code as 
 	<a href= "https://en.wikipedia.org/wiki/Scalable_Vector_Graphics">vector graphic</a>.</p>
   <p>The top left symbol is created by a minimized path shape, the top right (if present) by many single squares.</p>
   <p>The QR barcode in the middle is a transparent GIF image and the bottom Aztec barcode is a canvas PNG.</p>
@@ -302,7 +310,7 @@
   <p><b style="color:green">+</b> Creates QR or micro QR barcode symbols.</p>
   <p><b style="color:green">+</b> Creates Aztec, compact Aztec or Aztec rune barcodes.</p>
   <p><b style="color:green">+</b> Creates PDF417, compact PDF417 or micro PDF417 barcodes.</p>
-  <p><b style="color:green">+</b> HTML, Scalable Vector Graphic or PNG/GIF pixel image output.</p>
+  <p><b style="color:green">+</b> HTML, canvas, Scalable Vector Graphic or PNG/GIF pixel image output.</p>
   <p><b style="color:green">+</b> One short and compact program for all barcodes.</p>
   <p><b style="color:green">+</b> Available for office programs Excel, Access and Calc.</p>
   <p><b style="color:green">+</b> Automatic mode encoding and barcode size selection.</p>
@@ -331,8 +339,9 @@
   <p>Go do something cool with it.</p>
 
   <h3 style="text-align:left;text-indent:40px;color:navy;">Information about barcodes</h3>
-  <p><a href="https://barmatrixcode.de/">BarMatrixCode The Bar- and Matrixcode information</a> (german)</p>
   <p><a href="https://grandzebu.net/informatique/codbar-en/codbar.htm">Grandzebu Accueil, Open Barcodes Project</a></p>
+  <p><a href="https://barmatrixcode.de/">BarMatrixCode The Bar- and Matrixcode information</a> (german)</p>
+
    <h4>Data Matrix</h4>
   <p><a href="https://en.wikipedia.org/wiki/Data_Matrix">Wikipedia Data Matrix</a></p>
   <p><a href="https://www.iso.org/iso/catalogue_detail.htm?csnumber=44230">ISO/IEC 16022:2006, 
