@@ -5,7 +5,7 @@
 * @link https://zingl.github.io/
 * @description the indention of this library is a short and easy implementation to create the 2D barcodes 
 *	of Data Matrix, QR, Aztec or PDF417 symbols so it could be easily adapted for individual requirements.
-*	ALL return the smallest possible barcode fitting the date as array matrix 
+*	ALL return the smallest possible barcode fitting the data as array matrix 
 *	which could be converted to SVG path, html/css, canvas or GIF image.
 * functions: 
 *	datamatrix(text,rect)				create Data Matrix barcode
@@ -17,7 +17,7 @@
 *	toGif(mat,scale,trans,pad,rgb)  	convert array matrix to GIF image
 *	toHtml(mat,size,blocks)				convert array matrix to html/css
 *	toCanvas(mat,canvas,scale)			convert array matrix to canvas
-* there is no dependency between functions, just copy the ones you need
+* there is no dependency between functions, just copy the ones you need.
 *	'Small is beautiful' - Leopold Kohr.
 */
 "use strict";
@@ -993,7 +993,7 @@ function toHtml(mat, size, blocks) {
 */
 function toCanvas(mat, canvas, scale) {
 	var ctx = canvas.getContext('2d'), x = 0;
-	if (!Array.isArray(scale)) scale = [scale||3,scale||3]; // default 4x
+	if (!Array.isArray(scale)) scale = [scale||3,scale||3]; // default 3px
 	for (var y = mat.length; y--; x = Math.max(x,mat[y].length)); // get max width of matrix
 	canvas.width = x*scale[0]; canvas.height = mat.length*scale[1];
 	for (y = 0; y < mat.length; y++)
