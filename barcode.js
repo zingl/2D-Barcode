@@ -5,7 +5,7 @@
 * @link https://zingl.github.io/
 * @description the indention of this library is a short and easy implementation to create the 2D barcodes 
 *	of Data Matrix, QR, Aztec or PDF417 symbols so it could be easily adapted for individual requirements.
-*	All return the smallest possible barcode fitting the date as array matrix 
+*	ALL return the smallest possible barcode fitting the date as array matrix 
 *	which could be converted to SVG path, html/css, canvas or GIF image.
 * functions: 
 *	datamatrix(text,rect)				create Data Matrix barcode
