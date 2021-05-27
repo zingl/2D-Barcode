@@ -11,7 +11,7 @@
 		var text = unescape(encodeURIComponent(form.text.value)); // unicode chars to utf-8
 		
 		// DataMatrix in SVG
-		var path = toPath(datamatrix(text)); // get svg path of Data Matrix
+		var path = toPath(datamatrix(text)); // matrix as svg
 		svg.replaceChild(path,svg.firstElementChild); // replace drawing
 		svg.parentNode.setAttribute("style","height:"+svg.getBBox().height*6+"px"); // adjust size
 		
@@ -19,13 +19,13 @@
 		qr.src = toGif(quickresponse(text),6); // matrix as gif
 		
 		// Aztec in canvas
-		toCanvas(aztec(text),azt,6); // aztec to matrix as canvas
+		toCanvas(aztec(text),canvas,6); // matrix as canvas
 
 		// PDF417 in HTML/CSS
-		pdf.innerHTML = toHtml(pdf417(text),[4,10]); // matrix to HTML/CSS
+		pdf.innerHTML = toHtml(pdf417(text),[4,10]); // matrix as HTML/CSS
 		
 		// Code128 in HTML/CSS
-		c128.innerHTML = toHtml([code128(text)],[3,60]); // make 2D matrix of array for toHtml
+		c128.innerHTML = toHtml([code128(text)],[3,60]); // array to matrix for toHtml
 	}
   </script>  
 </head>
@@ -34,26 +34,26 @@
 	
 	<p>Check this page source to see how simple barcode generation is!</p>
 
-	<h3>Message to encode</h3>
+	<h3>Message to encode:</h3>
 	<form name="form">
 	  <p><textarea name="text" cols="60" rows="6" title="type barcode text here" onkeyup="window.onload()">TYPE TEXT HERE</textarea></p>
 	</form>
 
 	<h2>Data Matrix</h2>
-	<svg><g id="svg" transform="scale(6)"><path></path></g></svg>
+	as SVG: <svg><g id="svg" transform="scale(6)"><path></path></g></svg>
 	
 	<h2>QR Code</h2>
-		<img id="qr" />
+	as GIF: <img id="qr" />
 	
 	<h2>Aztec</h2>
-		<canvas id="azt"></canvas>
+	as Canvas: <canvas id="canvas"></canvas>
 	
 	<h2>PDF417</h2>
-		<p id="pdf"></p>
+	as HTML: <span id="pdf"></span>
 
 	<h2>Code128</h2>
-		<p id="c128"></p>
+	<p id="c128"></p>
 
-	<p>A page of <a href="https://zingl.github.io/">zingl.github.io</a></p>
+	<p>&copy; May 2021 <a href="https://zingl.github.io/">zingl.github.io</a></p>
 </body>
 </html>

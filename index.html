@@ -84,7 +84,7 @@
 			svg.parentNode.setAttribute('height', s*dm.length+5);
 			svg.parentNode.setAttribute('width', form.bg.checked ? 0 : s*dm[1].length+5);
 			svg.parentNode.setAttribute('title', "Content: "+text);
-			dmg1.src = toGif(dm,s,3);
+			dmg1.src = toGif(dm,s,3,2);
 			dmg1.style.width = form.bg.checked ? 'auto' : 0;
 			dmg1.style.visibility = form.bg.checked ? 'visible' : 'hidden';
 			dmg1.title = "Content: "+text;
@@ -103,7 +103,7 @@
 							r.width.baseVal.value = r.height.baseVal.value = 0.9;
 							g.appendChild(r);
 						}
-				dmg2.src = toGif(datamatrix(text),s,3);
+				dmg2.src = toGif(datamatrix(text),s,3,2);
 				dmg2.style.width = form.bg.checked ? 'auto' : 0;
 				dmg2.title = "Content: "+text;
 				g.setAttribute('transform', 'scale(' + s + ')'); // same cell size as rect
@@ -138,7 +138,7 @@
 		var r = quickresponse(form.text.value,document.qr.qual[i].value,qr.micro.checked?-3:1);
 		if (r.length == 0) { alert("Message too long for QR!"); return; }
 		tqr.innerHTML = (r.length < 20 ? 'Micro QR Code ' : 'QR Code ')+r.length+'x'+r.length+' cells (GIF)';
-		gif.src = toGif(r,s,form.bg.checked ? 3 : 0,form.bg.checked ? undefined : 0); // BG transparent/white
+		gif.src = toGif(r,s,form.bg.checked ? 3 : 0,form.bg.checked ? 2 : 0); // BG transparent/white
 		gif.title = "Content: "+getText();
 	  }
 	  function draw_aztec() { // create Aztec barcode as canvas
