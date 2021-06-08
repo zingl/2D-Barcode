@@ -1,25 +1,25 @@
 <!DOCTYPE HTML>
 <html>
 <head>
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta charset="utf-8" />
+  <meta name="description" content="Simple barcode generation demo.">
   <title>Barcode</title>
-  
   <script type="text/javascript" src="barcode.js"></script>
   <script type="text/javascript">
-	window.onload = function() { 
+	function barcode() { 
 		var text = unescape(encodeURIComponent(form.text.value)); // unicode chars to utf-8
 		
 		// DataMatrix in SVG
-		var path = toPath(datamatrix(text)); // matrix as svg
-		svg.replaceChild(path,svg.firstElementChild); // replace drawing
-		svg.parentNode.setAttribute("style","height:"+svg.getBBox().height*6+"px"); // adjust size
+		path.setAttribute('d',toPath(datamatrix(text))); // matrix as svg path
+		svg.setAttribute('style','height:'+svg.getBBox().height+'px'); // scale height
 		
 		// QRCode in GIF
-		qr.src = toGif(quickresponse(text),6); // matrix as gif
+		gif.src = toGif(quickresponse(text),6); // matrix as gif
 		
 		// Aztec in canvas
-		toCanvas(aztec(text),canvas,6); // matrix as canvas
+		var ctx = canvas.getContext('2d'), mat = aztec(text);
+		canvas.height = mat.length*6; ctx.scale(6,6); // scale height
+		ctx.fill(new Path2D(toPath(mat))); // matrix as canvas
 
 		// PDF417 in HTML/CSS
 		pdf.innerHTML = toHtml(pdf417(text),[4,10]); // matrix as HTML/CSS
@@ -29,21 +29,21 @@
 	}
   </script>  
 </head>
-<body>
+<body onload="barcode()">
 	<h1>Easy Barcode Generation</h1>
 	
 	<p>Check this page source to see how simple barcode generation is!</p>
 
 	<h3>Message to encode:</h3>
 	<form name="form">
-	  <p><textarea name="text" cols="60" rows="6" title="type barcode text here" onkeyup="window.onload()">TYPE TEXT HERE</textarea></p>
+	  <p><textarea name="text" cols="60" rows="6" title="type barcode text here" onkeyup="barcode()">TYPE TEXT HERE</textarea></p>
 	</form>
 
 	<h2>Data Matrix</h2>
-	as SVG: <svg><g id="svg" transform="scale(6)"><path></path></g></svg>
+	as SVG: <svg id="svg"><path id="path" transform="scale(6)" /></svg>
 	
 	<h2>QR Code</h2>
-	as GIF: <img id="qr" />
+	as GIF: <img id="gif" />
 	
 	<h2>Aztec</h2>
 	as Canvas: <canvas id="canvas"></canvas>
@@ -54,6 +54,6 @@
 	<h2>Code128</h2>
 	<p id="c128"></p>
 
-	<p>&copy; May 2021 <a href="https://zingl.github.io/">zingl.github.io</a></p>
+	<p>&copy; June 2021 <a href="https://zingl.github.io/">zingl.github.io</a></p>
 </body>
 </html>
