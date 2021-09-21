@@ -16,7 +16,7 @@
 *	toPath(mat)                         convert array matrix to SVG path
 *	toGif(mat,scale,trans,pad,rgb)      convert array matrix to GIF image
 *	toHtml(mat,size,blocks)             convert array matrix to html/css
-* there is no dependency between functions, just copy the ones you need.
+* The functions have no dependency between, just copy the ones you need.
 *	'Small is beautiful' - Leopold Kohr.
 */
 "use strict";
@@ -159,13 +159,14 @@ function datamatrix(text, rect) {
 	for (c = 0; c < b; c++) { // compute RS correction data for each block
 		for (i = 0; i <= s; i++) rc[i] = 0;
 		for (i = c; i < el; i += b)
-			for (j = 0, x = rc[0]^enc[i]; j < s; j++)
-				rc[j] = rc[j+1]^(x ? ex[(lg[rs[j]]+lg[x])%255] : 0);
+			for (j = 0, k = rc[0]^enc[i]; j < s; j++)
+				rc[j] = rc[j+1]^(k ? ex[(lg[rs[j]]+lg[k])%255] : 0);
 		for (i = 0; i < s; i++) // add interleaved correction data
 			enc[el+c+i*b] = rc[i];
 	}
 	// layout perimeter finder pattern
-	var mat = Array(h+2*nr).fill(null).map(()=>Array(w+2*nc).fill(0));
+	var mat = Array(h+2*nr);
+	for (i = 0; i < mat.length; i++) mat[i] = new Array(w+2*nc); // define matrix
 	for (i = 0; i < w+2*nc; i += fw+2) // vertical
 		for (j = 0; j < h; j++) {
  			mat[j+(j/fh|0)*2+1][i] = 1;
@@ -211,7 +212,7 @@ function datamatrix(text, rect) {
 
 /**	QR Code 2005 bar code symbol creation according ISO/IEC 18004:2006
 *	creates QR and micro QR bar code symbol as javascript matrix array.
-* @param text to encode
+* @param text to encode, can contain unicode chars (for kanji encoding)
 * @param level optional: quality level LMQH
 * @param ver optional: minimum version size (-3:M1, -2:M2, .. 1, .. 40), set to -3 for micro QR
 * @return matrix array of QR symbol ([] if text is too long)
@@ -232,7 +233,7 @@ function quickresponse(text, level, ver) { // create QR and micro QR bar code sy
 	var lev = 3-"HQMLhqml3210".indexOf(level||0)&3; // level "LMQH" to 0,1,2,3
 	var chars = [ "0123456789", // char table for numeric
 				"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:", // alpha
-				String.fromCharCode.apply(null,Array(128).fill(0).map((_,i) => i)), // binary, >127 -> use utf-8
+				String.fromCharCode.apply(null, Array.apply(null, {length: 127}).map(Number.call, Number)), // binary, >127 -> use utf-8
 				typeof kanji === "undefined" || kanji.length != 7973 ? "" : kanji ]; // kanji char index (in kanji.js)
 	function len(mod,chr) { // get encoding length in 1/6 bits
 		if (chars[mod].indexOf(chr) >= 0) return [20,33,48,78][mod];
@@ -267,10 +268,10 @@ function quickresponse(text, level, ver) { // create QR and micro QR bar code sy
 			}
 			n = mode = cost.indexOf(b); // start encoding with mode of fewest bits
 			for (i = j = 0; j++ < text.length; ) { // calc optimal encoding for each char
-				for (k of [2,3,1,0]) { // check binary, kanji, alpha, numeric mode
+				[2,3,1,0].forEach(function(k) { // check binary, kanji, alpha, numeric mode
 					b = bits[j][k]+len(k,text.charAt(j))+5; // switch to shorter encoding
 					if (b < 1e7 && (mode == k || 6*(b/6|0) == bits[j-1][mode]-head[mode])) n = k;
-				}
+				});
 				if (mode != n || j == text.length) { // mode changes -> encode previous
 					if (ver < -1 && ver+3 < mode) push(0,50); // prevent illegal mode
 					if (ver > 0) push(1<<mode,4); // mode indicator, QR
@@ -508,7 +509,7 @@ function aztec(text, sec, lay) { // make Aztec bar code
 					if (Cur[frm][0]+LatLen[frm][to] < Cur[to][0] && (frm < 5 || to == BackTo)) {
 						Cur[to] = Cur[frm].slice(); // replace by shorter sequence
 						if (frm < 5) // latch from shorter mode
-							Latch[frm][to].forEach(lat => stream(Cur[to], lat, lat < 16 ? 4 : 5));
+							Latch[frm][to].forEach(function (lat) {stream(Cur[to], lat, lat < 16 ? 4 : 5);});
 						else 
 							binary(Cur[to], i); // return from binary -> encode
 						if (to == 5) { BackTo = frm; numBytes = 0; Cur[5][0] += 5; } // begin binary shift
@@ -560,7 +561,8 @@ function aztec(text, sec, lay) { // make Aztec bar code
 				enc[el+j-1] = enc[el+j]^(p ? ex[(lg[rc[j]]+lg[p])%s] : 0);
 	}
 	/** layout Aztec barcode */
-	var mat = Array(2*ctr+1).fill(null).map(()=>Array(2*ctr+1).fill(0));
+	var mat = Array(2*ctr+1);
+	for (i = 0; i < 2*ctr+1; i++) mat[i] = new Array(2*ctr+1); // define matrix
 	for (y = 1-typ; y < typ; y++) // layout central finder
 		for (x = 1-typ; x < typ; x++)
 			if ((Math.max(Math.abs(x),Math.abs(y))&1) == 0)
@@ -625,27 +627,32 @@ function aztec(text, sec, lay) { // make Aztec bar code
 * @return matrix array of PDF417 symbol ([] if text is too long)
 */
 function pdf417(text, level, cols, rows, type) { // make PDF417 barcode
-	var txt = [ "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", // alpha compactation chars
+	var sub = [ "ABCDEFGHIJKLMNOPQRSTUVWXYZ ", // alpha compactation chars
 				"abcdefghijklmnopqrstuvwxyz ", // lower
 				"0123456789&\r\t,:#-.$/+%*=^\r ", // mixed
 				";<>@[\\]_`~!\r\t,:\n-.$/\"|*()?{}'" ]; // punctuation
-	var enc = [], mode = 2; // text alpha
+	var enc = [], mode = 2; // text>alpha
 	var pn = 0, pc = 0;
 	function push(c) { // encoding text compaction
 		if (pn == 1) enc.push(pc*30+c);
 		pn = 1-pn; pc = c*pn; // toggle pn
 	}
 	/** encode text */
-	for (var i = 0; i < text.length; ) {
-		// check for numeric
+	for (var i = 0; i < text.length; ) { // check for numeric
 		for (var j = 0; j < 45 && i+j < text.length; j++)
 			if (((text.charCodeAt(i+j)-48)&255) > 9) break;
-		if (j > 12 || i+j == text.length) { // numeric compaction
-			if (mode > 0) enc.push(902);
-			var t = BigInt("1"+text.substr(i,j));
+		if (j > 12 || i+j == text.length) {
+			if (mode > 0) enc.push(902); // numeric compaction
+			var t = "1"+text.substr(i,j);
 			i += j; j = enc.length; // to numeric
-			for ( ; t > 0; t = t/900n)
-				enc.splice(j,0,parseInt(t%900n));
+			for ( ; t > 0; t = c) {
+				var r = t.substr(0, t.length%3), c = "";
+				for (var k = t.length/3|0; k > 0; k--) {
+					r = r%900+t.substr(-3*k,3); // string division
+					c += ("00"+(r/900|0)).substr(-3);
+				}
+				enc.splice(j,0,r%900); // push reminder
+			}
 			mode = 0; continue;
 		}
 		// check for text
@@ -657,20 +664,20 @@ function pdf417(text, level, cols, rows, type) { // make PDF417 barcode
 			if (mode != 2) enc.push(900); // to text
 			mode = 2; 
 			for (t = j == t+13 ? t : j; t > 0; t--) {
-				var c = text.charAt(i++);
-				var k = txt[mode-2].indexOf(c);
+				c = text.charAt(i++);
+				k = sub[mode-2].indexOf(c);
 				if (k < 0) { // switch sub mode
 					if (mode > 4) { push(29); mode = 2; } // exit punctuation
-					for (j = -1; k < 0; k = txt[++j].indexOf(c)); // get sub mode
+					for (j = -1; k < 0; k = sub[++j].indexOf(c)); // get sub mode
 					if (j == 3) // to punctiation ?
-						if (i < text.length && txt[3].indexOf(text.charAt(i)) >= 0) {
+						if (i < text.length && sub[3].indexOf(text.charAt(i)) >= 0) {
 							if (mode < 4) push(28); // first to mixed
 							push(25); mode = 5; // latch to punctuation
 						} else push(29); // shift to punctuation
 					else if (mode == 3 && j == 0) // lower to upper
-						if (i == text.length || txt[1].indexOf(text.charAt(i)) >= 0)
-							push(27); // just one shift from lower to upper
-						else { push(28); push(28); mode = 2; } // latch to upper
+						if (i < text.length && sub[1].indexOf(text.charAt(i)) < 0) {
+							push(28); push(28); mode = 2; // latch to upper
+						} else push(27); // just one shift from lower to upper
 					else { push(28-j%2); mode = j+2; } // latch to alpha/lower/mixed
 				}
 				push(k); // add char
@@ -678,7 +685,7 @@ function pdf417(text, level, cols, rows, type) { // make PDF417 barcode
 			if (pn > 0) push(29); // padding
 			continue;
 		}
-		var b = 1; // byte compaction
+		b = 1; // byte compaction
 		for (j = 1; j < b+5 && i+j < text.length; j++) // get first 5 non-bytes
 			if (((text.charCodeAt(i+j)-32)&255) > 95) b = j+1;
 		if (i+j == text.length && mode < 2) b = text.length-i; // no 5 non-bytes beford eot
@@ -703,7 +710,7 @@ function pdf417(text, level, cols, rows, type) { // make PDF417 barcode
 	if ((rows|cols) == 0) { rows = 99; cols = 33; } // auto_size
 	if (type != 'm') { // full PDF417
 		if (el > 924) return []; // message too long
-		if (!Number.isInteger(level)) 
+		if ((level ^ 0) !== level) // isNotNumeric ?
 			level = el < 41 ? 2 : el < 161 ? 3 : el < 320 ? 4 : 5; // auto_level
 		level = level < 0 ? 0 : level > 8 ? 8 : level; // limit level
 		while (929-el < 2<<level) level--; // limit level to capacity
@@ -759,25 +766,24 @@ function pdf417(text, level, cols, rows, type) { // make PDF417 barcode
 	while (ec--) enc[el+ec] = (9290-enc[el+ec])%929; // complement RS
 
 	/** layout PDF417 barcode */
-	var bars = [[17,,,3,,,11,,4,4,,4,15,,,3,,,11,,4,22,,,3,,,3,,23,,4,,25,191,232,,,11,,,3,,3,,,3,,4,15,,,
-		11,,,3,,,3,,21,,,3,,4,,23,,4,5,569,,,3,,,11,,,3,,4,5,14,,,3,,,3,,4,5,19,,4,,4,24,639,,,11,,,3,,,3,,
-		4,,18,,,3,,4,,4,5,84,17,785,,,3,,,3,,4,,4,19,5,5,1005,10,4,5,17,40048,,,11,,,3,,,11,,4,84,,,11,,,3,,
-		4,5,19,,,3,,4,5,22,,4,185,-39757,,,3,,,11,,,3,,,3,,31,,,58,9,,,58,,,11,9,,,58,,4,32,,,58,9,,,58,,,
-		3,9,8,35,,7,9,,7,,4,38,8,9,8,388,,,11,,,3,,,3,,4,5,30,,,58,9,,58,9,56,9,58,9,,7,,9,4,14,,,58,9,,7,,
-		9,7,9,5,19,,7,9,8,9,8,24,419,,,3,,,3,,4,,4,5,40001,,,58,9,,,58,,,3,9,,7,,4,32,,7,9,,7,,4,9,8,22,5,
-		604,,,3,,4,,4,5,31,,,58,9,,7,,9,7,9,8,9,19,8,5,5,793,5,17,35,4,8,5,5,80039,,,3,,3,,,3,,4,5,14,,,
-		3,,,3,,4,5,19,,4,,4,24,5,60,,,11,,,3,,,3,,4,,31,,,58,9,,58,9,56,9,58,,9,7,9,8,32,,,58,9,56,3,,9,7,
-		9,8,35,,7,9,8,9,24,8,-39757,,,3,,,3,,4,,4,31,,,58,9,56,9,58,,,3,9,,7,,40026,40001,,,58,9,,,-79963,
-		9,,,58,,,42,54,9,,7,79990,14,,7,9,,54,9,,7,,42,8,35,8,9,6,9,60,,,3,,4,,4,5,31,,,58,9,56,3,,9,7,9,8,
-		9,8,79996,,,58,9,,54,9,,9,54,,42,6,9,9,8,32,,7,9,6,9,9,6,9,38,-79920,423,,4,,4,5,34,,7,9,,7,,4,9,8,
-		44,,7,9,,54,9,,7,,42,6,9,8,35,8,5,612,17,38,4,5,37,8,8,79990,8,80074,4,,4,,,3,,4,,18,,,3,,4,,4,5,
-		19,,4,5,24,-39541,,,3,,4,,4,,4,31,,,58,9,56,9,58,,,3,9,,7,,40026,14,,7,9,,7,,4,9,22,8,9,8,60,,,3,,
-		4,,4,5,31,,7,9,,7,,9,7,9,8,9,8,79996,,7,9,56,58,9,,9,54,,42,6,9,9,8,32,,7,9,6,9,9,6,9,38,8,8,-39753,,
-		4,,4,5,34,,7,,9,7,,4,9,8,44,,7,9,,54,9,,7,,42,6,9,8,119991,,7,9,,54,9,,54,9,,42,53,,42,6,51,8,9,6,
-		9,6,9,8,392,,4,5,37,,7,,4,9,8,46,,7,9,6,9,9,6,9,8,50,,7,,7,9,9,53,9,9,6,9,8,47,-79920,462,25,5,
-		40,8,5,48,8,8,5,160025,5,,4,5,5,19,5,5,5,22,5,61,5,,4,,4,5,31,,7,,9,7,,4,,4,9,8,32,,7,,4,9,8,38,8,
-		-39537,5,5,5,34,8,,9,7,,4,9,8,44,8,9,,54,9,9,6,9,9,6,9,35,8,9,6,9,8,-39568,5,5,37,8,,4,9,8,46,,7,,
-		7,9,9,6,9,8,50,,7,,7,9,9,53,9,9,6,9,47,8,8,8,-39749,5,40,8,9,8,48,8,9,6,9,8,120061,8,9,6,9,6,],
+	sub = [[17,,,3,,,11,,4,4,,4,15,,,3,,,11,,4,22,,,3,,,3,,23,,4,,25,191,232,,,11,,,3,,3,,,3,,4,15,,,11,,,3,,,3,,
+		21,,,3,,4,,23,,4,5,569,,,3,,,11,,,3,,4,5,14,,,3,,,3,,4,5,19,,4,,4,24,639,,,11,,,3,,,3,,4,,18,,,3,,4,,4,
+		5,84,17,785,,,3,,,3,,4,,4,19,5,5,1005,10,4,5,17,40048,,,11,,,3,,,11,,4,84,,,11,,,3,,4,5,19,,,3,,4,5,22,,
+		4,185,-39757,,,3,,,11,,,3,,,3,,31,,,58,9,,,58,,,11,9,,,58,,4,32,,,58,9,,,58,,,3,9,8,35,,7,9,,7,,4,38,8,9,
+		8,388,,,11,,,3,,,3,,4,5,30,,,58,9,,58,9,56,9,58,9,,7,,9,4,14,,,58,9,,7,,9,7,9,5,19,,7,9,8,9,8,24,419,,,
+		3,,,3,,4,,4,5,40001,,,58,9,,,58,,,3,9,,7,,4,32,,7,9,,7,,4,9,8,22,5,604,,,3,,4,,4,5,31,,,58,9,,7,,9,7,9,8,
+		9,19,8,5,5,793,5,17,35,4,8,5,5,80039,,,3,,3,,,3,,4,5,14,,,3,,,3,,4,5,19,,4,,4,24,5,60,,,11,,,3,,,3,,4,,
+		31,,,58,9,,58,9,56,9,58,,9,7,9,8,32,,,58,9,56,3,,9,7,9,8,35,,7,9,8,9,24,8,-39757,,,3,,,3,,4,,4,31,,,58,
+		9,56,9,58,,,3,9,,7,,40026,40001,,,58,9,,,-79963,9,,,58,,,42,54,9,,7,79990,14,,7,9,,54,9,,7,,42,8,35,8,
+		9,6,9,60,,,3,,4,,4,5,31,,,58,9,56,3,,9,7,9,8,9,8,79996,,,58,9,,54,9,,9,54,,42,6,9,9,8,32,,7,9,6,9,9,6,9,
+		38,-79920,423,,4,,4,5,34,,7,9,,7,,4,9,8,44,,7,9,,54,9,,7,,42,6,9,8,35,8,5,612,17,38,4,5,37,8,8,79990,8,
+		80074,4,,4,,,3,,4,,18,,,3,,4,,4,5,19,,4,5,24,-39541,,,3,,4,,4,,4,31,,,58,9,56,9,58,,,3,9,,7,,40026,14,,
+		7,9,,7,,4,9,22,8,9,8,60,,,3,,4,,4,5,31,,7,9,,7,,9,7,9,8,9,8,79996,,7,9,56,58,9,,9,54,,42,6,9,9,8,32,,
+		7,9,6,9,9,6,9,38,8,8,-39753,,4,,4,5,34,,7,,9,7,,4,9,8,44,,7,9,,54,9,,7,,42,6,9,8,119991,,7,9,,54,9,,54,
+		9,,42,53,,42,6,51,8,9,6,9,6,9,8,392,,4,5,37,,7,,4,9,8,46,,7,9,6,9,9,6,9,8,50,,7,,7,9,9,53,9,9,6,9,8,47,
+		-79920,462,25,5,40,8,5,48,8,8,5,160025,5,,4,5,5,19,5,5,5,22,5,61,5,,4,,4,5,31,,7,,9,7,,4,,4,9,8,32,,7,,
+		4,9,8,38,8,-39537,5,5,5,34,8,,9,7,,4,9,8,44,8,9,,54,9,9,6,9,9,6,9,35,8,9,6,9,8,-39568,5,5,37,8,,4,9,8,
+		46,,7,,7,9,9,6,9,8,50,,7,,7,9,9,53,9,9,6,9,47,8,8,8,-39749,5,40,8,9,8,48,8,9,6,9,8,120061,8,9,6,9,6,],
 	[10,,3,,,3,,,3,,4,,4,14,,,11,,,3,,,3,,4,,4,14,,,11,,,3,,,3,,4,,4,14,,,11,,,3,,,3,,4,,18,,,3,,4,,4,22,,4,5,
 		137,,,3,,,3,,4,,4,5,13,,,3,,,3,,4,,4,5,13,,,3,,,3,,4,,4,5,13,,,3,,,3,,4,,4,19,,4,,4,5,22,5,172,,,3,,4,,
 		4,5,18,,,3,,4,,4,5,18,,,3,,4,,4,5,18,,,3,,4,,4,5,19,,4,5,24,207,,4,,4,5,21,,4,,4,5,21,,4,,4,5,21,,4,,4,
@@ -820,34 +826,33 @@ function pdf417(text, level, cols, rows, type) { // make PDF417 barcode
 	ec = [4,6,25,27,31,35,-79955,-39964,-39960,39995,8,23,29,41,45,49,55,66,76,80,86,111,115,146,150,181,216,855,1040,
 		1075,40005,40036,40040,40050,40071,40075,40081,40106,40110,40116,40141,40176,79986,80000,80031,80035,80066,80070,
 		80101,80136,120026,120030,120096,-119950,-79959,-39989,-39987,-39985,-39968,-39966,-39572,-39356,-39105,-38920];
-	for (b of bars) // cluster 0/3/6
+	sub.forEach(function(b) { // cluster 0/3/6
 		for (i = 0; i < b.length-1; i++) { // unpack bar/space sequence
 			t = [17]; b[i+1] = b[i] + (b[i+1]&-64 ? b[i+1] : ec[b[i+1]|0]);
 			for (j = 8; --j > 0; b[i] = b[i]/6|0) // get width of bar/space
 				t[0] -= t[j] = b[i]%6+1;
-			for (j = 0; j < 8; j++) // make pattern
-				while (t[j]-- > 0) b[i] += b[i]+(1&j^1);
-		}
+			while (j < 8) b[i] = ((++b[i]<<t[j++])-1)<<t[j++]; // make pattern
+		}});
 	var mat = Array(rows); // barcode matrix
 	function set(bar,bits) { // set code bars
 		while (bits-- > 0) mat[r][k++] = (bar>>bits)&1; 
 	}
-	t = [((rows-1)/3)|0,level*3+(rows-1)%3,cols-1]; // row indicator cluster
+	t = [(rows-1)/3|0,level*3+(rows-1)%3,cols-1]; // row indicator cluster
 	for (r = 0; r < rows; r++) { // all rows
 		mat[r] = []; k = 0;
 		if (type != 'm') { // full PDF417
-			set(0b11111111010101000,17); // start
-			set(bars[r%3][30*((r/3)|0)+t[r%3]],17); // left row indicator
+			set(130728,17); // start
+			set(sub[r%3][30*(r/3|0)+t[r%3]],17); // left row indicator
 			for (c = 0; c < cols; c++) // layout message
-				set(bars[r%3][enc[r*cols+c]],17);
+				set(sub[r%3][enc[r*cols+c]],17);
 			if (type != 'c') // full PDF417 ?
-				set(bars[r%3][30*((r/3)|0)+t[(r+2)%3]],17); // right row indicator
-			set(0b111111101000101001, type != 'c' ? 18 : 1); // stop
+				set(sub[r%3][30*(r/3|0)+t[(r+2)%3]],17); // right row indicator
+			set(260649, type != 'c' ? 18 : 1); // stop
 		} else { // MicroPDF417
 			set(pats[(rapl+r)%52]*2+768,10); // left row address pattern
 			for (c = 0; c < cols; c++) {
 			   if (c > 0 && cols-c == 2) set(patc[(rapc+r)%52]*2+512,10); // center row address pattern
-			   set(bars[(clst+r)%3][enc[r*cols+c]],17); // data message
+			   set(sub[(clst+r)%3][enc[r*cols+c]],17); // data message
 			}
 			set(pats[(rapr+r)%52]*4+1537,11); // right row address pattern
 		}
@@ -911,13 +916,13 @@ function code128(text) {
 */
 function toPath(mat) {
 	var  path = "", x, y; 
-	for (y of mat) y.unshift(0); // add padding around matrix
+	mat.forEach(function (y) { y.unshift(0); }); // add padding around matrix
 	mat.push([]); mat.unshift([]);
 	for (;;) {		// draw polygons
 		for (y = 0; y+2 < mat.length; y++) // look for set pixel
-			if ((x = mat[y+1].findIndex(i => i&1)-1) >= 0) break;
+			if ((x = mat[y+1].indexOf(1)-1) >= 0 || (x = mat[y+1].indexOf(5)-1) >= 0) break;
 		if (y+2 == mat.length || path.length > 1e7) return path;
-		var cw = mat[y+1][x+1]>>2, p = ""; // from start
+		var c = mat[y+1][x+1]>>2, p = ""; // from start
 		for (var x0 = x, y0 = y, d = 1; p.length < 1e6;) { // encircle pixel area
 			do x += 2*d-1; // move left/right
 			while ((mat[y][x+d]^mat[y+1][x+d])&mat[y+d][x+d]&1); // follow horizontal edge
@@ -926,10 +931,10 @@ function toPath(mat) {
 			while ((mat[y+d][x]^mat[y+d][x+1])&mat[y+d][x+1-d]&1); // follow vertical edge
 			if (x == x0 && y == y0) break; // returned to start
 			d ^= 1^mat[y+d][x+1-d]&1; // turn left/right
-			if (cw) p = "V"+y+"H"+x+p; // add points counterclockwise
+			if (c) p = "V"+y+"H"+x+p; // add points counterclockwise
 			else p += "H"+x+"V"+y; // add clockwise
 		}
-		path += "M"+x+" "+y+p+(cw ? "V"+y : "H"+x)+"Z"; // close path
+		path += "M"+x+" "+y+p+(c ? "V"+y : "H"+x)+"Z"; // close path
 		for (d = 0, y = 1; y < mat.length-1; y++) // clear pixel between marked edges
 			for (x = 1; x < mat[y].length; x++) {
 				d ^= (mat[y][x]>>1)&1; // invert pixels inside, clr marking
@@ -942,7 +947,7 @@ function toPath(mat) {
 * @param mat image matrix array of index colors
 * @param scale optional (1): single bar or [width,height]
 * @param trans optional: transparent color index (undefined)
-* @param pad optional: padding arround image in cells (1+5%)
+* @param pad optional: padding arround image in cells (0)
 * @param rgb optional: table of rgb color map (black&white)
 * @param max optional: maximum dictionary bits (2-12 - but large dictionaries are slow in js)
 * @return string "data:image/gif;base64,imagedata"
@@ -1019,15 +1024,14 @@ function toHtml(mat, size, blocks) {
 			html += "."+s+" .bar"+i+j+" {border-left:"+i*size[0]+"px solid; margin-right:"+j*size[0]+"px}";
 	html += "</style><div class="+s+" style='line-height:"+size[1]+"px; display:inline-block'>";
 
-	for (i = 0; i < mat.length; i++) { // convert matrix
+	for (i = 0; i < mat.length; i++) // convert matrix
 		for (j = 0; j < mat[i].length; ) {
+			if (i && !j) html += "<br style='clear:both' />";
 			for (b = 0; j < mat[i].length; b++, j++) // bars
 				if (!mat[i][j] || b+1 == blocks) break;
 			for (s = 0; j < mat[i].length; s++, j++) // spaces
 				if (mat[i][j] || s+1 == blocks) break;
 			html += "<div class=bar"+b+s+"></div>";
 		}
-		html += "<br style='clear:both' />";
-	}
 	return html+"</div>"; // html/css of 2D barcode
 }
