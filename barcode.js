@@ -165,8 +165,7 @@ function datamatrix(text, rect) {
 			enc[el+c+i*b] = rc[i];
 	}
 	// layout perimeter finder pattern
-	var mat = Array(h+2*nr);
-	for (i = 0; i < mat.length; i++) mat[i] = new Array(w+2*nc); // define matrix
+	var mat = Array(h+2*nr).fill(null).map(function() {return [];});
 	for (i = 0; i < w+2*nc; i += fw+2) // vertical
 		for (j = 0; j < h; j++) {
  			mat[j+(j/fh|0)*2+1][i] = 1;
@@ -337,8 +336,7 @@ function quickresponse(text, level, ver) { // create QR and micro QR bar code sy
 				enc[eb+j-1] = enc[eb+j]^(x ? ex[(lg[rs[j]]+lg[x])%255] : 0);
 
 	/** layout symbol */
-	var mat = new Array(size); // bit 2 reserved space
-	for (i = 0; i < size; i++) mat[i] = new Array(size); // define matrix
+	var mat = Array(size).fill(null).map(function() {return [];});
 	function set(x,y,pat) { // layout fixed pattern: finder & align
 		for (var i = 0; i < pat.length; i++)
 			for (var p = pat[i], j = 0; 1<<j <= pat[0]; j++, p >>= 1)
@@ -561,12 +559,10 @@ function aztec(text, sec, lay) { // make Aztec bar code
 				enc[el+j-1] = enc[el+j]^(p ? ex[(lg[rc[j]]+lg[p])%s] : 0);
 	}
 	/** layout Aztec barcode */
-	var mat = Array(2*ctr+1);
-	for (i = 0; i < 2*ctr+1; i++) mat[i] = new Array(2*ctr+1); // define matrix
+	var mat = Array(2*ctr+1).fill(null).map(function() {return [];});
 	for (y = 1-typ; y < typ; y++) // layout central finder
 		for (x = 1-typ; x < typ; x++)
-			if ((Math.max(Math.abs(x),Math.abs(y))&1) == 0)
-				mat[ctr+y][ctr+x] = 1;
+			mat[ctr+y][ctr+x] = Math.max(Math.abs(x),Math.abs(y))&1^1;
 	mat[ctr-typ+1][ctr-typ] = mat[ctr-typ][ctr-typ] = 1; // orientation marks
 	mat[ctr-typ][ctr-typ+1] = mat[ctr+typ-1][ctr+typ] = 1;
 	mat[ctr-typ+1][ctr+typ] = mat[ctr-typ][ctr+typ] = 1; 
@@ -685,7 +681,7 @@ function pdf417(text, level, cols, rows, type) { // make PDF417 barcode
 			if (pn > 0) push(29); // padding
 			continue;
 		}
-		b = 1; // byte compaction
+		var b = 1; // byte compaction
 		for (j = 1; j < b+5 && i+j < text.length; j++) // get first 5 non-bytes
 			if (((text.charCodeAt(i+j)-32)&255) > 95) b = j+1;
 		if (i+j == text.length && mode < 2) b = text.length-i; // no 5 non-bytes beford eot
