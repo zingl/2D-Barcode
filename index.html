@@ -3,6 +3,7 @@
 <head>
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta charset="utf-8" />
+  <meta name="description" content="Official documentation for JSDoc 3.">
   <meta name="keywords" content= "bar code, barcode, 2D, symbol, data matrix, QR, micro QR, Aztec, Code 128, PDF417, program, open source, public domain, free software, SVG, GIF, javascript" />
 
   <script type="text/javascript" src="barcode.js"></script>
@@ -60,9 +61,9 @@
 	  function ticktack(i) { // date/time as animated barcode background image
 		var s = Math.min(800,document.body.clientWidth)/10, bg = i?back2:back1;
 		bg.setAttribute('width', s*12);
-		bg.setAttribute('height', s*36);
+		bg.setAttribute('height', s*38);
 		bg = bg.firstElementChild;
-		bg.replaceChild(toPath(datamatrix(Date().substr(0,24), true)),bg.firstElementChild);
+		bg.firstElementChild.setAttribute("d",toPath(datamatrix(Date().substr(0,24), true)));
 		bg.setAttribute('transform','scale('+s+') translate(0,37) rotate(-90)');
 		back1.parentNode.style.transitionTimingFunction = "cubic-bezier(0.5,"+(1-i)+",1,1)";
 		back2.parentNode.style.transitionTimingFunction = "cubic-bezier(0.5,"+i+",1,1)";
@@ -89,8 +90,8 @@
 			dmg1.style.visibility = form.bg.checked ? 'visible' : 'hidden';
 			dmg1.title = "Content: "+text;
 			var g = toPath(form.bg.checked ? [[0]] : dm); // convert image to SVG path
-			g.setAttribute('transform', 'scale(' + s + ')');
-			svg.replaceChild(g,svg.firstElementChild);
+			svg.firstElementChild.setAttribute('transform', 'scale(' + s + ')');
+			svg.firstElementChild.setAttribute("d",g);
 			if (dm[1].length > 4+dm.length) { // different width/height: draw both square and rectangular 
 				g = document.createElementNS('http://www.w3.org/2000/svg','g');
 				dm = datamatrix(text); // (optional) false = square symbol
@@ -170,13 +171,13 @@
 		<div  class="active">Barcode</div><a href="blurring.html"><div >Blurring</div></a></div>
   <div style="position:absolute;z-index:-1;opacity:0;transition: opacity 0.5s ease-in-out;">
 	<svg id=back1>
-	  <g style="fill:#b4f2d4;"><rect /></g>
+	  <g style="fill:#b4f2d4;"><path fill-rule="evenodd" /></g>
 	  <desc>date/time animated barcode background</desc>
 	</svg>
   </div>
   <div style="position:absolute;z-index:-1;opacity:0;transition: opacity 0.5s ease-in-out;">
 	<svg id=back2>
-	  <g style="fill:#b4f2d4;"><rect /></g>
+	  <g style="fill:#b4f2d4;"><path fill-rule="evenodd" /></g>
 	  <desc>date/time animated barcode background</desc>
 	</svg>
   </div>
@@ -194,7 +195,7 @@
 		<form name="form">
 		  <p><textarea name="text" cols="80" rows="4" title="type barcode text here" onkeyup="draw()">TYPE TEXT HERE</textarea></p>
 		  <p><div id="remark" style="text-align: center">
-			The barcode generator is 100% client-side <a href="barcode.js" title="source code">JavaScript</a> without any dependencies.
+			The barcode generator is pure client-side <a href="barcode.js" title="source code">JavaScript</a> without any dependencies.
 		  </div></p>
 		  <p style="text-align: center;">You can also view a very simple page of <a href="easybar.html">Easy Barcode Generation</a>.</p>
 		  <p><div id="remark" style="text-align: center">
@@ -211,7 +212,7 @@
 		<p style="text-align: center;"><img id="dmg1" class="bar" />
 		<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
 		<desc>Data Matrix barcode</desc>
-		 <g id=svg filter="url(#filter)" class=bar transform="translate(3,0)"><path></path></g>
+		 <g id=svg filter="url(#filter)" class=bar transform="translate(3,0)"><path fill-rule="evenodd" /></g>
 		 <defs><filter id=filter ><feGaussianBlur in="SourceAlpha" stdDeviation=1 result="blur"/>
 		  <feOffset in="blur" dx=-1 dy=1 result="offset"/>
 		  <feSpecularLighting in="blur" surfaceScale=1 specularConstant=.8 specularExponent=10 lighting-color=#acd result="spec">
@@ -247,7 +248,8 @@
 		<h3 style="text-align:left;text-indent:40px;">QR Code</h3>
 		<form name="qr">
 		  <p>quality level:</p>
-		  <p><label><input type="radio" name="qual" value="L" title="low" checked="checked" onclick="draw_qr()" /> L &nbsp; 7% (low)</label></p>
+		  <p><label><input type="radio" name="qual" value="A" title="auto" checked="checked" onclick="draw_qr()" /> auto</label></p>
+		  <p><label><input type="radio" name="qual" value="L" title="low" onclick="draw_qr()" /> L &nbsp; 7% (low)</label></p>
 		  <p><label><input type="radio" name="qual" value="M" title="medium" onclick="draw_qr()" /> M 15% (medium)</label></p>
 		  <p><label><input type="radio" name="qual" value="Q" title="quartile" onclick="draw_qr()" /> Q 25% (quartile)</label></p>
 		  <p><label><input type="radio" name="qual" value="H" title="high" onclick="draw_qr()" /> H 30% (high)</label></p>
@@ -326,7 +328,7 @@
   <p><i>Flexible:</i> outputs vector or pixel images in adjustable design.</p>
   <p><i>Adaptable:</i> modify or convert simple source code to your own desire.</p>
 
-  <h3 style="text-align:left;text-indent:40px;color:navy">Download V2.1</h3>
+  <h3 style="text-align:left;text-indent:40px;color:navy">Download V2.2</h3>
   <p>The barcode program is open source software at <a href="https://github.com/zingl/2D-Barcode/">GitHub</a> (MIT license).</p>
   <p>The algorithm is available as <b>Jasvascript</b>: <a href="barcode.js">barcode.js</a>.</p>
   <p>For <a href="https://office.microsoft.com/">MS Office</a> it is available as <b>Excel</b>: 
@@ -376,9 +378,9 @@
   <p>Copyright &#169; Alois Zingl, Austria, Email: <script type="text/javascript">
 	//<![CDATA[
 	var r = "&#46at";
-	document.write('<a title="Send mail!" id="[at]" href="m' + 'ail'+ Psns('easyfilter') + 
-		"chello" + r + '"><img align="absbottom" src="email.gif" border="0"><\/a>');
+	document.write('<a title="Send mail!" id="[at]" href="m' + 'ail'+ Psns('alois.zingl') + 
+		"gmx" + r + '"><img align="absbottom" src="email.gif" border="0"><\/a>');
 	//]]>
-  </script><noscript><img align="absbottom" src="email.gif" /></noscript>, last update May 2021.</p>
+  </script><noscript><img align="absbottom" src="email.gif" /></noscript>, last update June 2021.</p>
 </body>
 </html>
